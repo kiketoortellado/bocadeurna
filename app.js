@@ -38,7 +38,7 @@ function initData() {
     if (storedUsers) users = JSON.parse(storedUsers);
     if (storedCargas) cargas = JSON.parse(storedCargas);
     if (!users.find(u => u.username === "Admin")) {
-        users.push({ username: "Admin", password: "620rnasa", localAsignado: null, role: "admin" });
+        users.push({ username: "Admin", password: "620rnasa", fullName: "Administrador", localAsignado: null, role: "admin" });
     }
     locales.forEach(local => {
         if (!votosIntendentes[local]) votosIntendentes[local] = {};
@@ -70,6 +70,8 @@ function registrarVoto(local, tipo, id, votos, usuario, concejalNombre = null, l
         votosIntendentes[local][id] = (votosIntendentes[local][id] || 0) + votos;
         addCarga(usuario, local, "intendente", id, null, null, votos);
     } else if (tipo === "concejal") {
+        // id aquí es el nombre del concejal, listaId es la lista a la que pertenece
+        if (!listaId) return false;
         votosListas[local][listaId] = (votosListas[local][listaId] || 0) + votos;
         addCarga(usuario, local, "concejal", null, listaId, concejalNombre, votos);
     }
@@ -95,8 +97,6 @@ function totalListas() {
 
 // -------------------- D'HONDT --------------------
 function calcularDhondt(votosPorLista, bancas) {
-    // votosPorLista: objeto { listaId: votos }
-    // Retorna: { listaId: bancasAsignadas }
     let listas = Object.keys(votosPorLista).filter(lid => votosPorLista[lid] > 0);
     if (listas.length === 0) return {};
     let cocientes = [];
@@ -152,11 +152,11 @@ function renderTablaIntendentesPorLocal() {
     const thead = document.getElementById("intendentesHeader");
     const tbody = document.getElementById("intendentesBody");
     if(!thead) return;
-    let header = "<tr><th>Local</th>"; intendentes.forEach(i=>{ header+=`<th>${i.nombre} (${i.lista})</th>`; }); header+="<th>Total Local</th></table>";
+    let header = "<tr><th>Local</th>"; intendentes.forEach(i=>{ header+=`<th>${i.nombre} (${i.lista})</th>`; }); header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
     let body = "";
     locales.forEach(local => {
-        let fila = `<td><td class="candidate-name">${local}</td>`;
+        let fila = `<tr><td class="candidate-name">${local}</td>`;
         let sumaLocal=0;
         intendentes.forEach(i=>{ let v=votosIntendentes[local][i.id]||0; fila+=`<td>${v.toLocaleString()}</td>`; sumaLocal+=v; });
         fila+=`<td class="total-votes">${sumaLocal.toLocaleString()}</td></tr>`;
@@ -204,9 +204,36 @@ function renderDetalleConcejales() {
 function renderUsersTable() {
     const tbody = document.getElementById("usersTableBody");
     if(!tbody) return;
-    tbody.innerHTML = users.filter(u=>u.role !== "admin").map(u=>`<tr><td>${u.username}</td><td>${u.localAsignado}</td><td>digitador</td><td><button class="delete-user-btn" data-user="${u.username}" style="background:#b0154f; width:auto; padding:0.3rem 0.8rem;">Eliminar</button></td></tr>`).join("");
+    tbody.innerHTML = users.filter(u=>u.role !== "admin").map(u => `
+        <tr>
+            <td>${u.fullName}</td>
+            <td>${u.username}</td>
+            <td>${u.localAsignado}</td>
+            <td>
+                <button class="edit-password-btn" data-user="${u.username}" style="background:#f4a261; width:auto; padding:0.3rem 0.8rem;">Cambiar contraseña</button>
+                <button class="delete-user-btn" data-user="${u.username}" style="background:#b0154f; width:auto; padding:0.3rem 0.8rem;">Eliminar</button>
+            </td>
+        </tr>
+    `).join("");
+    // Eventos editar contraseña
+    document.querySelectorAll('.edit-password-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const username = btn.getAttribute('data-user');
+            const newPass = prompt("Nueva contraseña para el usuario " + username);
+            if (newPass && newPass.trim() !== "") {
+                const user = users.find(u => u.username === username);
+                if (user) {
+                    user.password = newPass.trim();
+                    persistAll();
+                    alert("Contraseña actualizada.");
+                    renderUsersTable();
+                }
+            }
+        });
+    });
+    // Eventos eliminar usuario
     document.querySelectorAll('.delete-user-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', () => {
             const username = btn.getAttribute('data-user');
             if(confirm(`¿Eliminar usuario ${username}?`)) {
                 users = users.filter(u => u.username !== username);
@@ -282,6 +309,50 @@ function showLoginModal() {
                 renderAdminStats();
                 renderUsersTable();
                 renderAllLogs();
+                // Configurar el selector de candidatos para el admin rápido
+                const adminTipo = document.getElementById("adminTipoSelect");
+                const adminCandidato = document.getElementById("adminCandidatoSelect");
+                function actualizarAdminSelect() {
+                    if (adminTipo.value === "intendente") {
+                        adminCandidato.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
+                    } else {
+                        let html = '';
+                        for (const [lid, info] of Object.entries(listasConcejales)) {
+                            for (let candidato of info.candidatos) {
+                                html += `<option value="${candidato}" data-lista="${lid}">Lista ${lid} - ${candidato}</option>`;
+                            }
+                        }
+                        adminCandidato.innerHTML = html;
+                    }
+                }
+                adminTipo.addEventListener('change', actualizarAdminSelect);
+                actualizarAdminSelect();
+                // Evento botón admin rápido
+                document.getElementById("adminRegistrarBtn").onclick = () => {
+                    const local = document.getElementById("adminLocalSelect").value;
+                    const tipo = adminTipo.value;
+                    const votos = parseInt(document.getElementById("adminVotosInput").value);
+                    if (isNaN(votos) || votos <= 0) { alert("Cantidad inválida"); return; }
+                    if (tipo === "intendente") {
+                        const id = adminCandidato.value;
+                        if (registrarVoto(local, "intendente", id, votos, "Admin")) {
+                            alert("Voto registrado");
+                            renderAdminStats();
+                            renderAllLogs();
+                        } else alert("Error");
+                    } else {
+                        const selectedOption = adminCandidato.options[adminCandidato.selectedIndex];
+                        const listaId = selectedOption.getAttribute("data-lista");
+                        const concejalNombre = selectedOption.value;
+                        if (registrarVoto(local, "concejal", null, votos, "Admin", concejalNombre, listaId)) {
+                            alert("Voto a concejal registrado");
+                            renderAdminStats();
+                            renderAllLogs();
+                        } else alert("Error");
+                    }
+                    document.getElementById("adminVotosInput").value = "";
+                };
+                // Tabs
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -314,7 +385,7 @@ function logout() {
     document.getElementById("floatingLoginBtn").style.display = "block";
 }
 
-// -------------------- EVENTOS --------------------
+// -------------------- EVENTOS DE CARGA DIGITADOR --------------------
 document.addEventListener('DOMContentLoaded', () => {
     initData();
     document.getElementById('floatingLoginBtn').addEventListener('click', showLoginModal);
@@ -327,7 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (votos > 0 && registrarVoto(currentUser.localAsignado, "intendente", id, votos, currentUser.username)) {
             alert(`Voto intendente registrado: +${votos}`);
             document.getElementById('digVotosIntendente').value = '';
-            if (currentUser.role === 'admin') renderAdminStats();
             renderMisCargas();
         } else alert("Cantidad inválida");
     });
@@ -340,20 +410,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (registrarVoto(currentUser.localAsignado, "concejal", null, votos, currentUser.username, concejalNombre, listaId)) {
             alert(`Voto concejal registrado: +${votos} para ${concejalNombre}`);
             document.getElementById('digVotosConcejal').value = '';
-            if (currentUser.role === 'admin') renderAdminStats();
             renderMisCargas();
         } else alert("Error al registrar");
     });
     document.getElementById('createUserBtn')?.addEventListener('click', () => {
         if (currentUser?.role !== 'admin') return;
+        const fullName = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value.trim();
         const local = document.getElementById('newUserLocal').value;
-        if (!username || !password) { alert("Complete usuario y contraseña"); return; }
+        if (!fullName || !username || !password) { alert("Complete todos los campos"); return; }
         if (users.find(u=>u.username===username)) { alert("El usuario ya existe"); return; }
-        users.push({ username, password, localAsignado: local, role: "digitador" });
+        users.push({ fullName, username, password, localAsignado: local, role: "digitador" });
         persistAll();
         renderUsersTable();
+        document.getElementById('newFullName').value = '';
         document.getElementById('newUsername').value = '';
         document.getElementById('newPassword').value = '';
         alert("Usuario digitador creado");
