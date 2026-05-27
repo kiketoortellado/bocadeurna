@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, browserLocalPersistence, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch, getDocs } from "firebase/firestore";
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -148,7 +148,6 @@ async function inicializarVotosEnFirestore() {
     if (!intendentes.length || !locales.length) return;
     const batch = writeBatch(db);
     
-    // Intentar crear documentos para intendentes si no existen
     for (let local of locales) {
         const docRef = doc(db, "intendentes_votes", local);
         const docSnap = await getDoc(docRef);
@@ -172,20 +171,19 @@ async function inicializarVotosEnFirestore() {
 }
 
 async function crearAdminInicial() {
-    const usersCollection = collection(db, "users");
-    const adminDocRef = doc(db, "users", "Admin");
+    const adminUsername = "Admin";
+    // Normalizar email a minúsculas
+    const adminEmail = `${adminUsername.toLowerCase()}@bocadeurna.local`; // admin@bocadeurna.local
+    const adminPassword = "620rnasa";
+    const adminDocRef = doc(db, "users", adminUsername);
     const adminSnap = await getDoc(adminDocRef);
     if (!adminSnap.exists()) {
         try {
-            // Crear usuario en Firebase Auth con email admin@bocadeurna.local
-            const email = "admin@bocadeurna.local";
-            const password = "620rnasa";
-            const userCred = await createUserWithEmailAndPassword(auth, email, password);
+            const userCred = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
             const uid = userCred.user.uid;
-            // Guardar datos adicionales en Firestore
             await setDoc(adminDocRef, {
                 uid: uid,
-                username: "Admin",
+                username: adminUsername,
                 fullName: "Administrador",
                 role: "admin",
                 localAsignado: null
@@ -193,8 +191,8 @@ async function crearAdminInicial() {
             console.log("Usuario administrador creado");
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
-                // Ya existe, sincronizar
-                console.log("Admin ya existe en Auth");
+                console.log("Admin ya existe en Auth. Sincronizando...");
+                // Opcional: actualizar el documento si falta
             } else {
                 console.error("Error creando admin:", error);
             }
@@ -207,7 +205,6 @@ function escucharVotos() {
     if (listenersActive) return;
     listenersActive = true;
     
-    // Escuchar intendentes
     for (let local of locales) {
         const docRef = doc(db, "intendentes_votes", local);
         onSnapshot(docRef, (docSnap) => {
@@ -230,7 +227,6 @@ function escucharVotos() {
         });
     }
     
-    // Escuchar logs (últimos 200)
     const logsQuery = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(200));
     onSnapshot(logsQuery, (snapshot) => {
         cargas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -256,7 +252,6 @@ async function registrarVoto(local, tipo, id, votos, usuario, concejalNombre = n
                 const newVal = (currentData[id] || 0) + votos;
                 transaction.update(docRef, { [id]: newVal });
             });
-            // Agregar log
             await setDoc(doc(collection(db, "logs")), {
                 timestamp: new Date().toISOString(),
                 usuario: usuario,
@@ -593,10 +588,12 @@ function renderDetalleConcejales(candidatosPorListaOriginal) {
 // -------------------- ADMIN: USUARIOS Y LOGS --------------------
 async function crearDigitador(fullName, username, password, local) {
     try {
-        const email = `${username}@bocadeurna.local`;
+        // Normalizar username a minúsculas para el email
+        const normalizedUsername = username.toLowerCase();
+        const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCred.user.uid;
-        await setDoc(doc(db, "users", username), {
+        await setDoc(doc(db, "users", username), {  // Guardamos el username original como clave (con mayúsculas si las tiene)
             uid: uid,
             username: username,
             fullName: fullName,
@@ -612,8 +609,6 @@ async function crearDigitador(fullName, username, password, local) {
 }
 
 async function eliminarDigitador(username) {
-    // Nota: Eliminar usuario de Auth requiere funciones de admin, por simplicidad solo borramos de Firestore
-    // En producción se recomienda usar Cloud Function o marcar como deshabilitado.
     if(confirm(`¿Eliminar usuario ${username}? Solo se borrará de la base de datos local, no de Auth.`)){
         await setDoc(doc(db, "users", username), { disabled: true }, { merge: true });
         renderUsersTable();
@@ -621,7 +616,6 @@ async function eliminarDigitador(username) {
 }
 
 async function cambiarPasswordDigitador(username, newPass) {
-    // Esto requiere funciones de administrador en Firebase, por simplicidad mostramos mensaje.
     alert("Para cambiar contraseña, usa la consola de Firebase Auth o implementa una función cloud.");
 }
 
@@ -829,7 +823,6 @@ function renderAdminPanel() {
 }
 
 function setupAdminEvents() {
-    // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -843,7 +836,6 @@ function setupAdminEvents() {
         });
     });
     
-    // Carga rápida admin
     const adminLocal = document.getElementById("adminLocalSelect");
     const adminTipo = document.getElementById("adminTipoSelect");
     const adminCandidato = document.getElementById("adminCandidatoSelect");
@@ -910,10 +902,11 @@ function setupAdminEvents() {
 // -------------------- LOGIN Y AUTENTICACIÓN --------------------
 async function login(username, password) {
     try {
-        const email = `${username}@bocadeurna.local`;
+        // Normalizar el nombre de usuario a minúsculas para el email
+        const normalizedUsername = username.toLowerCase();
+        const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await signInWithEmailAndPassword(auth, email, password);
-        // Obtener datos adicionales de Firestore
-        const userDoc = await getDoc(doc(db, "users", username));
+        const userDoc = await getDoc(doc(db, "users", username)); // El documento se guarda con el username original (Admin, no admin)
         if (userDoc.exists()) {
             const userData = userDoc.data();
             currentUser = { ...userData, uid: userCred.user.uid };
@@ -988,10 +981,8 @@ async function startApp() {
     const floatingBtn = document.getElementById('floatingLoginBtn');
     floatingBtn.addEventListener('click', showLoginModal);
     
-    // Verificar sesión activa
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // Buscar en Firestore el documento del usuario
             const usersSnapshot = await getDocs(collection(db, "users"));
             let userData = null;
             usersSnapshot.forEach(doc => {
@@ -1019,7 +1010,6 @@ async function startApp() {
                 await signOut(auth);
             }
         } else {
-            // No hay sesión
             if (currentUser) logout();
         }
     });
