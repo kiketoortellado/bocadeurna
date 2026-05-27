@@ -14,7 +14,7 @@
 <div class="container" id="app">
     <div class="radio-header">
         <div class="brand">
-            <h1><i class="fas fa-microphone-alt"></i> Radio Ñasaindy 620 AM</h1>
+            <h1><img src="assets/logo_nasa.png" alt="Logo Radio Ñasaindy" class="logo-radio"> Radio Ñasaindy 620 AM</h1>
             <p>Distrito de San Estanislao (Santaní) · Elecciones Municipales 2026</p>
         </div>
         <div class="election-badge">
@@ -35,13 +35,11 @@
                 <h2><i class="fas fa-chart-line"></i> Resultados provisorios – San Estanislao</h2>
             </div>
 
-            <!-- Mini tarjetas resumen -->
             <div class="mini-stats">
                 <div class="stat-card"><i class="fas fa-user-tie"></i><h3>Intendentes</h3><div id="resumenIntendentes"></div></div>
                 <div class="stat-card"><i class="fas fa-users"></i><h3>Concejales</h3><div id="resumenConcejales"></div></div>
             </div>
 
-            <!-- Módulo de carga rápida admin -->
             <div class="admin-quick-vote">
                 <h3><i class="fas fa-bolt"></i> Registro rápido de votos (Admin)</h3>
                 <div class="quick-vote-grid">
@@ -61,16 +59,14 @@
                 <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Votos por Lista de Concejales (porcentaje)</h3><canvas id="listasChart"></canvas></div>
             </div>
 
-            <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody><table></div></div>
+            <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table></div></div>
             <div class="results-section"><h3><i class="fas fa-list-check"></i> Votos por Lista de Concejales (por local) - sumatoria individual</h3><div style="overflow-x:auto;"><table class="vote-table" id="listasPorLocalTable"><thead id="listasHeader"></thead><tbody id="listasBody"></tbody></table></div></div>
             
-            <!-- D'Hondt -->
             <div class="results-section" style="background: #faf0e6;">
                 <h3><i class="fas fa-calculator"></i> Método D'Hondt – Distribución de 12 bancas entre listas</h3>
                 <div id="dhondtResultado"></div>
             </div>
 
-            <!-- Concejales electos (ordenados por votos individuales) -->
             <div class="results-section">
                 <h3><i class="fas fa-trophy"></i> Concejales electos (ordenados por votos individuales)</h3>
                 <div style="overflow-x:auto;">
@@ -81,7 +77,6 @@
                 </div>
             </div>
 
-            <!-- Detalle de candidatos por lista (orden original, tabla sin bordes) -->
             <div class="results-section"><h3><i class="fas fa-user-friends"></i> Detalle de candidatos por lista (orden original, con votos individuales)</h3><div id="concejalesDetalle"></div></div>
         </div>
 
@@ -96,7 +91,7 @@
                     <button id="createUserBtn" style="grid-column: span 2;">Crear Usuario</button>
                 </div>
                 <h3 style="margin-top:1.5rem;">Usuarios digitadores existentes</h3>
-                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody>能有</table>
+                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody>能得到</table>
                 <button id="logoutAdminBtn" class="btn-admin logout-btn" style="margin-top:1rem;"><i class="fas fa-sign-out-alt"></i> Cerrar sesión Admin</button>
             </div>
         </div>
@@ -104,7 +99,7 @@
         <div id="tabLogs" class="tab-content">
             <div class="admin-area">
                 <h3><i class="fas fa-list-alt"></i> Todas las cargas realizadas</h3>
-                <div style="overflow-x:auto;"><table class="vote-table" id="allLogsTable"><thead><tr><th>Fecha</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato/Lista</th><th>Concejal</th><th>Votos</th></tr></thead><tbody id="allLogsBody"></tbody><table></div>
+                <div style="overflow-x:auto;"><table class="vote-table" id="allLogsTable"><thead><tr><th>Fecha</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato/Lista</th><th>Concejal</th><th>Votos</th></tr></thead><tbody id="allLogsBody"></tbody>能得到</div>
             </div>
         </div>
     </div>
@@ -133,7 +128,7 @@
             </div>
             <div class="carga-card">
                 <h4><i class="fas fa-history"></i> Mis últimas cargas</h4>
-                <div style="overflow-x:auto;"><table class="vote-table" id="misCargasTable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody></table></div>
+                <div style="overflow-x:auto;"><table class="vote-table" id="misCargasTable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody>能得到</div>
             </div>
         </div>
     </div>
