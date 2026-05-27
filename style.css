@@ -31,13 +31,61 @@ body {
     margin-bottom: 2rem;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     flex-wrap: wrap;
     color: white;
     box-shadow: var(--shadow-md);
+    gap: 1rem;
 }
-.brand h1 { font-size: 1.5rem; }
-.brand h1 i { color: var(--radio-fuchsia); margin-right: 0.5rem; }
-.election-badge { background: var(--radio-fuchsia); padding: 0.5rem 1.2rem; border-radius: 3rem; font-weight: 700; }
+.brand h1 {
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.brand p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-top: 0.2rem;
+}
+.election-badge {
+    background: var(--radio-fuchsia);
+    padding: 0.5rem 1.2rem;
+    border-radius: 3rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Logo más grande en header */
+.logo-radio {
+    height: 60px;
+    width: auto;
+    vertical-align: middle;
+}
+
+/* Logo aún más grande en el login */
+.login-logo {
+    height: 80px;
+    margin-bottom: 15px;
+}
+
+/* Botón flotante siempre visible */
+.floating-login {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    background: var(--radio-fuchsia);
+    font-size: 1.1rem;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.floating-login:hover {
+    transform: scale(1.02);
+}
 
 .admin-tabs {
     display: flex;
@@ -167,16 +215,6 @@ body {
 }
 .btn-admin:hover { background: #b0154f; }
 .logout-btn { background: #4a6b62; }
-.floating-login {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 999;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    background: var(--radio-fuchsia);
-    font-size: 1.1rem;
-    padding: 0.8rem 1.5rem;
-}
 
 .login-modal {
     position: fixed;
@@ -194,21 +232,11 @@ body {
     background: white;
     max-width: 450px;
     width: 90%;
-    padding: 2.5rem 2rem;
+    padding: 2rem;
     border-radius: 2rem;
     text-align: center;
     box-shadow: 0 25px 40px rgba(0,0,0,0.3);
     border-top: 8px solid var(--radio-fuchsia);
-}
-.login-card i {
-    font-size: 3rem;
-    color: var(--radio-fuchsia);
-    margin-bottom: 0.5rem;
-}
-.login-card h3 {
-    font-size: 1.8rem;
-    color: var(--radio-green);
-    margin-bottom: 0.5rem;
 }
 .login-card input {
     width: 100%;
@@ -311,26 +339,9 @@ body {
     .charts-panel { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
     .quick-vote-grid { grid-template-columns: 1fr; }
-}
-
-/* ========== NUEVOS ESTILOS PARA EL LOGO ========== */
-.logo-radio {
-    height: 32px;
-    width: auto;
-    vertical-align: middle;
-    margin-right: 8px;
-}
-
-.login-logo {
-    height: 60px;
-    margin-bottom: 10px;
-}
-
-@media (max-width: 780px) {
-    .logo-radio {
-        height: 28px;
-    }
-    .login-logo {
-        height: 50px;
-    }
+    .logo-radio { height: 45px; }
+    .login-logo { height: 60px; }
+    .brand h1 { font-size: 1.2rem; }
+    .radio-header { flex-direction: column; align-items: flex-start; }
+    .election-badge { align-self: flex-start; }
 }
