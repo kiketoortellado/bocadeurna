@@ -14,7 +14,6 @@ body {
 :root {
     --radio-green: #006D5B;
     --radio-fuchsia: #D81B60;
-    --radio-dark: #004d3d;
     --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.1);
     --border-radius: 1.5rem;
 }
@@ -63,7 +62,6 @@ body {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* Módulo de carga rápida admin */
 .admin-quick-vote {
     background: white;
     border-radius: var(--border-radius);
@@ -159,7 +157,6 @@ body {
     padding: 0.8rem 1.5rem;
 }
 
-/* Login grande */
 .login-modal {
     position: fixed;
     top: 0;
@@ -216,7 +213,6 @@ body {
     background: #6c8b82;
 }
 
-/* Digitador móvil */
 .digitador-container {
     background: white;
     border-radius: var(--border-radius);
