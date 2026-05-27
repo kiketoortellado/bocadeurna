@@ -312,3 +312,25 @@ body {
     .form-grid { grid-template-columns: 1fr; }
     .quick-vote-grid { grid-template-columns: 1fr; }
 }
+
+/* ========== NUEVOS ESTILOS PARA EL LOGO ========== */
+.logo-radio {
+    height: 32px;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.login-logo {
+    height: 60px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 780px) {
+    .logo-radio {
+        height: 28px;
+    }
+    .login-logo {
+        height: 50px;
+    }
+}
