@@ -656,90 +656,284 @@ function renderAllLogs() {
     `).join("");
 }
 
-// -------------------- PANEL DEL DIGITADOR --------------------
+// -------------------- PANEL DEL DIGITADOR (INTEGRACIÓN MÓVIL WIZARD) --------------------
 function renderDigitadorPanel() {
     document.getElementById("digitadorPanel").innerHTML = `
-        <div class="digitador-container">
-            <div class="digitador-header">
-                <h2><i class="fas fa-keyboard"></i> Panel Digitador – <span id="miLocalSpan"></span></h2>
-                <button id="logoutDigitadorBtn" class="btn-admin logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</button>
+        <div class="mobile-wizard-container">
+            <div class="mobile-wizard-header">
+                <div>
+                    <span class="mobile-local-badge">
+                        <i class="fas fa-map-marker-alt"></i> <span id="miLocalSpan">Cargando...</span>
+                    </span>
+                </div>
+                <button id="logoutDigitadorBtn" class="mobile-logout-btn" title="Cerrar Sesión">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
-            <div class="carga-card">
-                <h3>Cargar votos – Intendente</h3>
-                <select id="digIntendenteSelect"></select>
-                <input type="number" id="digVotosIntendente" placeholder="Cantidad de votos" min="1">
-                <button id="cargarIntendenteBtn">Registrar Votos Intendente</button>
-            </div>
-            <div class="carga-card">
-                <h3>Cargar votos – Concejal</h3>
-                <select id="digListaSelect"><option value="">Seleccione una lista</option></select>
-                <select id="digConcejalSelect" disabled><option value="">Primero elija lista</option></select>
-                <input type="number" id="digVotosConcejal" placeholder="Cantidad de votos" min="1">
-                <button id="cargarConcejalBtn">Registrar Votos Concejal</button>
-            </div>
-            <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
-                <h3 style="color:var(--radio-green); margin-bottom:1rem;">Mis cargas recientes</h3>
-                <table class="vote-table"><thead><tr><th>Fecha/Hora</th><th>Tipo</th><th>Candidato</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody></table>
+            
+            <div id="wizardStepContent"></div>
+            
+            <div id="wizardSuccessOverlay" class="wizard-success-overlay" style="display:none;">
+                <div class="success-card">
+                    <i class="fas fa-check-circle success-icon" id="successIcon"></i>
+                    <h2 id="successMessageTitle">¡Voto Registrado!</h2>
+                    <p id="successMessageSub">Preparando siguiente registro...</p>
+                </div>
             </div>
         </div>
     `;
 }
 
 function loadDigitadorInterface() {
+    // Asegurar visibilidad correcta del panel
     document.getElementById("digitadorPanel").style.display = "block";
     document.getElementById("adminPanel").style.display = "none";
-    document.getElementById("miLocalSpan").innerText = currentUser.localAsignado;
     
-    const digIntendenteSelect = document.getElementById("digIntendenteSelect");
-    digIntendenteSelect.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
-    
-    const listaSelect = document.getElementById("digListaSelect");
-    listaSelect.innerHTML = '<option value="">Seleccione una lista</option>';
-    for (const [lid, info] of Object.entries(listasConcejales)) {
-        listaSelect.innerHTML += `<option value="${lid}">Lista ${lid} - ${info.nombre}</option>`;
+    // Mostrar el local asignado al digitador actual
+    const miLocalSpan = document.getElementById("miLocalSpan");
+    if (miLocalSpan && currentUser) {
+        miLocalSpan.innerText = currentUser.localAsignado || "Local Asignado";
     }
-    listaSelect.onchange = function() {
-        const concejalSelect = document.getElementById("digConcejalSelect");
-        if (this.value) {
-            const candidatos = listasConcejales[this.value].candidatos;
-            concejalSelect.disabled = false;
-            concejalSelect.innerHTML = '<option value="">Seleccione concejal</option>' + candidatos.map(c => `<option value="${c.opcion} — ${c.nombre}">${c.opcion} — ${c.nombre}</option>`).join('');
-        } else {
-            concejalSelect.disabled = true;
-            concejalSelect.innerHTML = '<option value="">Primero elija lista</option>';
-        }
-    };
-    renderMisCargas();
-
-    document.getElementById('cargarIntendenteBtn').onclick = async () => {
-        const id = document.getElementById('digIntendenteSelect').value;
-        const votos = parseInt(document.getElementById('digVotosIntendente').value);
-        if (votos > 0 && await registrarVoto(currentUser.localAsignado, "intendente", id, votos, currentUser.username)) {
-            alert(`Voto intendente registrado: +${votos}`);
-            document.getElementById('digVotosIntendente').value = '';
-            renderMisCargas();
-        } else alert("Cantidad inválida");
-    };
-
-    document.getElementById('cargarConcejalBtn').onclick = async () => {
-        const listaId = document.getElementById('digListaSelect').value;
-        const concejalTexto = document.getElementById('digConcejalSelect').value;
-        if (!listaId || !concejalTexto) { alert("Seleccione lista y concejal"); return; }
-        const concejalObj = concejalesIndividuales.find(c => c.lista === listaId && `${c.opcion} — ${c.nombre}` === concejalTexto);
-        if (!concejalObj) { alert("Error al identificar concejal"); return; }
-        const votos = parseInt(document.getElementById('digVotosConcejal').value);
-        if (votos <= 0) { alert("Cantidad inválida"); return; }
-        if (await registrarVoto(currentUser.localAsignado, "concejal", concejalObj.id, votos, currentUser.username, concejalObj.nombre, listaId)) {
-            alert(`Voto a concejal registrado: +${votos} para ${concejalObj.nombre}`);
-            document.getElementById('digVotosConcejal').value = '';
-            renderMisCargas();
-        } else alert("Error al registrar");
-    };
-
+    
+    // Configurar botón de cerrar sesión
     const logoutDigitadorBtn = document.getElementById('logoutDigitadorBtn');
     if (logoutDigitadorBtn) {
         logoutDigitadorBtn.onclick = logout;
     }
+    
+    // Objeto temporal que mantiene la selección del flujo actual
+    let transaccionVoto = {
+        intendenteId: null,
+        listaId: null,
+        concejalObj: null
+    };
+    
+    // --- PASO 1: SELECCIÓN DE INTENDENTE (OBLIGATORIO) ---
+    function mostrarPaso1() {
+        transaccionVoto = { intendenteId: null, listaId: null, concejalObj: null };
+        const container = document.getElementById("wizardStepContent");
+        if (!container) return;
+        
+        let html = `
+            <div class="wizard-step">
+                <div class="wizard-progress">
+                    <span class="step-dot active"></span>
+                    <span class="step-dot"></span>
+                    <span class="step-dot"></span>
+                </div>
+                <h2 class="wizard-title">Seleccione Intendente</h2>
+                <div class="big-buttons-grid">
+        `;
+        
+        if (typeof intendentes !== 'undefined' && intendentes.length > 0) {
+            intendentes.forEach(i => {
+                html += `
+                    <button class="btn-big-option btn-intendente" data-id="${i.id}">
+                        <span class="candidate-party">Lista ${i.lista || i.id}</span>
+                        <span class="candidate-main-name">${i.nombre}</span>
+                        <span class="candidate-sub">${i.alianza || ''}</span>
+                    </button>
+                `;
+            });
+        } else {
+            html += `<p style="text-align:center; padding:2rem; color:#888;">No hay intendentes cargados en el sistema.</p>`;
+        }
+        
+        html += `</div></div>`;
+        container.innerHTML = html;
+        
+        container.querySelectorAll('.btn-intendente').forEach(btn => {
+            btn.onclick = () => {
+                transaccionVoto.intendenteId = btn.getAttribute('data-id');
+                mostrarPaso2();
+            };
+        });
+    }
+    
+    // --- PASO 2: SELECCIÓN DE LISTA DE CONCEJALES ---
+    function mostrarPaso2() {
+        const container = document.getElementById("wizardStepContent");
+        if (!container) return;
+        
+        let html = `
+            <div class="wizard-step">
+                <div class="wizard-progress">
+                    <span class="step-dot active"></span>
+                    <span class="step-dot active"></span>
+                    <span class="step-dot"></span>
+                </div>
+                <h2 class="wizard-title">Seleccione Lista de Junta</h2>
+                
+                <button class="btn-omitir-wizard" id="btnOmitirConcejales">
+                    <i class="fas fa-forward"></i> OMITIR CONCEJALES (Solo Intendente)
+                </button>
+                
+                <button class="btn-back-wizard full-width" id="btnVolverPaso1" style="margin-bottom: 1rem;">
+                    <i class="fas fa-arrow-left"></i> Volver a Intendentes
+                </button>
+                
+                <div class="big-buttons-grid">
+        `;
+        
+        if (typeof listasConcejales !== 'undefined' && Object.keys(listasConcejales).length > 0) {
+            for (const [lid, info] of Object.entries(listasConcejales)) {
+                html += `
+                    <button class="btn-big-option btn-lista" data-id="${lid}">
+                        <span class="candidate-party">Lista ${lid}</span>
+                        <span class="candidate-main-name">${info.nombre}</span>
+                    </button>
+                `;
+            }
+        } else {
+            html += `<p style="text-align:center; padding:2rem; color:#888;">No hay listas de concejales configuradas.</p>`;
+        }
+        
+        html += `</div></div>`;
+        container.innerHTML = html;
+        
+        document.getElementById('btnOmitirConcejales').onclick = () => {
+            transaccionVoto.listaId = null;
+            transaccionVoto.concejalObj = null;
+            procesarGuardadoVoto(transaccionVoto);
+        };
+        
+        document.getElementById('btnVolverPaso1').onclick = () => {
+            mostrarPaso1();
+        };
+        
+        container.querySelectorAll('.btn-lista').forEach(btn => {
+            btn.onclick = () => {
+                transaccionVoto.listaId = btn.getAttribute('data-id');
+                mostrarPaso3();
+            };
+        });
+    }
+    
+    // --- PASO 3: SELECCIÓN DE CANDIDATO INDIVIDUAL ---
+    function mostrarPaso3() {
+        const container = document.getElementById("wizardStepContent");
+        if (!container) return;
+        
+        const listaInfo = listasConcejales[transaccionVoto.listaId];
+        const candidatos = listaInfo ? listaInfo.candidatos : [];
+        
+        let html = `
+            <div class="wizard-step">
+                <div class="wizard-progress">
+                    <span class="step-dot active"></span>
+                    <span class="step-dot active"></span>
+                    <span class="step-dot active"></span>
+                </div>
+                <div class="wizard-subtitle">Lista ${transaccionVoto.listaId} · ${listaInfo ? listaInfo.nombre : ''}</div>
+                <h2 class="wizard-title">Seleccione Opción</h2>
+                
+                <div class="wizard-action-buttons">
+                    <button class="btn-back-wizard" id="btnVolverPaso2">
+                        <i class="fas fa-arrow-left"></i> Cambiar Lista
+                    </button>
+                    <button class="btn-omitir-wizard compact" id="btnOmitirCandidato">
+                        <i class="fas fa-forward"></i> Omitir Nombre
+                    </button>
+                </div>
+                
+                <div class="big-buttons-grid alternative-scrolling">
+        `;
+        
+        if (candidatos && candidatos.length > 0) {
+            candidatos.forEach(c => {
+                let concejalId = c.id;
+                if (typeof concejalesIndividuales !== 'undefined') {
+                    const encontrado = concejalesIndividuales.find(ci => ci.lista === transaccionVoto.listaId && ci.opcion == c.opcion);
+                    if (encontrado) concejalId = encontrado.id;
+                }
+                
+                html += `
+                    <button class="btn-big-option btn-concejal" data-id="${concejalId}" data-opcion="${c.opcion}" data-nombre="${c.nombre}">
+                        <span class="candidate-party">Opción ${c.opcion}</span>
+                        <span class="candidate-main-name-small">${c.nombre}</span>
+                    </button>
+                `;
+            });
+        } else {
+            html += `<p style="text-align:center; padding:2rem; color:#888;">Esta lista no cuenta con candidatos registrados.</p>`;
+        }
+        
+        html += `</div></div>`;
+        container.innerHTML = html;
+        
+        document.getElementById('btnVolverPaso2').onclick = () => {
+            mostrarPaso2();
+        };
+        
+        document.getElementById('btnOmitirCandidato').onclick = () => {
+            transaccionVoto.concejalObj = { id: `lista_${transaccionVoto.listaId}`, nombre: `Voto de Lista`, lista: transaccionVoto.listaId };
+            procesarGuardadoVoto(transaccionVoto);
+        };
+        
+        container.querySelectorAll('.btn-concejal').forEach(btn => {
+            btn.onclick = () => {
+                transaccionVoto.concejalObj = {
+                    id: btn.getAttribute('data-id'),
+                    nombre: btn.getAttribute('data-nombre'),
+                    lista: transaccionVoto.listaId,
+                    opcion: btn.getAttribute('data-opcion')
+                };
+                procesarGuardadoVoto(transaccionVoto);
+            };
+        });
+    }
+    
+    // --- PROCESAMIENTO Y RESETEO ---
+    async function procesarGuardadoVoto(votoFinal) {
+        const overlay = document.getElementById("wizardSuccessOverlay");
+        const icon = document.getElementById("successIcon");
+        const title = document.getElementById("successMessageTitle");
+        const sub = document.getElementById("successMessageSub");
+        
+        if (overlay) {
+            title.innerText = "Registrando voto...";
+            sub.innerText = "Guardando en la base de datos...";
+            icon.className = "fas fa-spinner fa-spin success-icon";
+            overlay.style.display = "flex";
+        }
+        
+        try {
+            const localDestino = currentUser.localAsignado || "Mesa Electoral";
+            
+            await registrarVoto(localDestino, "intendente", votoFinal.intendenteId, 1, currentUser.username);
+            
+            if (votoFinal.concejalObj) {
+                await registrarVoto(
+                    localDestino, 
+                    "concejal", 
+                    votoFinal.concejalObj.id, 
+                    1, 
+                    currentUser.username, 
+                    votoFinal.concejalObj.nombre, 
+                    votoFinal.listaId
+                );
+            }
+            
+            if (overlay) {
+                title.innerText = "¡Voto Registrado!";
+                sub.innerText = "Listo para el siguiente elector.";
+                icon.className = "fas fa-check-circle success-icon";
+            }
+            
+            setTimeout(() => {
+                if (overlay) overlay.style.display = "none";
+                mostrarPaso1();
+            }, 1000);
+            
+        } catch (error) {
+            console.error("Error al registrar voto:", error);
+            if (overlay) overlay.style.display = "none";
+            alert("Error de conexión. Por favor presiona la última opción de nuevo.");
+            mostrarPaso1();
+        }
+    }
+    
+    mostrarPaso1();
 }
 
 function renderMisCargas() {
@@ -905,13 +1099,9 @@ async function login(username, password) {
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
         
-        // 1. Validar correo y contraseña
         const userCred = await signInWithEmailAndPassword(auth, email, password);
-        
-        // 2. Buscar datos en base de datos
         let userDoc = await getDoc(doc(db, "users", normalizedUsername));
         
-        // 🔥 AUTO-REPARACIÓN: Si entra el Admin pero su documento Firestore desapareció, se vuelve a crear al instante.
         if (!userDoc.exists() && normalizedUsername === "admin") {
             console.log("Perfil de Admin ausente en Firestore. Recreando automáticamente...");
             await setDoc(doc(db, "users", "admin"), {
@@ -924,7 +1114,6 @@ async function login(username, password) {
             userDoc = await getDoc(doc(db, "users", normalizedUsername));
         }
 
-        // 3. Evaluar permisos y enrutar
         if (userDoc.exists()) {
             const userData = userDoc.data();
             if (userData.disabled) {
@@ -1021,7 +1210,6 @@ async function startApp() {
                 }
             }
             
-            // 🔥 AUTO-REPARACIÓN EN SEGUNDA LÍNEA: Si la sesión está activa pero Firestore se borró, reconstruye al recargar.
             if (!userData && user.email === "admin@bocadeurna.local") {
                 console.log("Sesión activa detectada pero sin datos. Reconstruyendo documento del Admin...");
                 await setDoc(doc(db, "users", "admin"), {
