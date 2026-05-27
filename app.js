@@ -535,6 +535,31 @@ function loadDigitadorInterface() {
         }
     };
     renderMisCargas();
+
+    document.getElementById('cargarIntendenteBtn').addEventListener('click', () => {
+        const id = document.getElementById('digIntendenteSelect').value;
+        const votos = parseInt(document.getElementById('digVotosIntendente').value);
+        if (votos > 0 && registrarVoto(currentUser.localAsignado, "intendente", id, votos, currentUser.username)) {
+            alert(`Voto intendente registrado: +${votos}`);
+            document.getElementById('digVotosIntendente').value = '';
+            renderMisCargas();
+        } else alert("Cantidad inválida");
+    });
+
+    document.getElementById('cargarConcejalBtn').addEventListener('click', () => {
+        const listaId = document.getElementById('digListaSelect').value;
+        const concejalTexto = document.getElementById('digConcejalSelect').value;
+        if (!listaId || !concejalTexto) { alert("Seleccione lista y concejal"); return; }
+        const concejalObj = concejalesIndividuales.find(c => c.lista === listaId && `${c.opcion} — ${c.nombre}` === concejalTexto);
+        if (!concejalObj) { alert("Error al identificar concejal"); return; }
+        const votos = parseInt(document.getElementById('digVotosConcejal').value);
+        if (votos <= 0) { alert("Cantidad inválida"); return; }
+        if (registrarVoto(currentUser.localAsignado, "concejal", concejalObj.id, votos, currentUser.username, concejalObj.nombre, listaId)) {
+            alert(`Voto a concejal registrado: +${votos} para ${concejalObj.nombre}`);
+            document.getElementById('digVotosConcejal').value = '';
+            renderMisCargas();
+        } else alert("Error al registrar");
+    });
 }
 
 function renderMisCargas() {
@@ -549,6 +574,165 @@ function renderMisCargas() {
             <td>${c.votos}</td>
         </tr>
     `).join("");
+}
+
+// -------------------- RENDER PANELES HTML --------------------
+function renderAdminPanel() {
+    const listasHeaders = Object.keys(listasConcejales).map(lid =>
+        `<th>Lista ${lid}<br><small>${listasConcejales[lid].nombre}</small></th>`).join('');
+
+    document.getElementById("adminPanel").innerHTML = `
+        <div class="admin-area">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+                <h2 style="color:white;"><i class="fas fa-chart-bar"></i> Panel Administrador</h2>
+                <button id="logoutAdminBtn" class="btn-admin logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</button>
+            </div>
+
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="stats"><i class="fas fa-chart-pie"></i> Resultados</button>
+                <button class="tab-btn" data-tab="carga"><i class="fas fa-plus-circle"></i> Carga rápida</button>
+                <button class="tab-btn" data-tab="users"><i class="fas fa-users"></i> Usuarios</button>
+                <button class="tab-btn" data-tab="logs"><i class="fas fa-list-alt"></i> Registro</button>
+            </div>
+
+            <!-- TAB STATS -->
+            <div id="tabStats" class="tab-content active">
+                <div class="mini-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-vote-yea"></i>
+                        <h3>Votos Intendente</h3>
+                        <div id="resumenIntendentes"></div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <h3>Votos Concejales</h3>
+                        <div id="resumenConcejales"></div>
+                    </div>
+                </div>
+                <div class="charts-panel">
+                    <div class="chart-card">
+                        <h3 style="margin-bottom:0.5rem;">Intendentes</h3>
+                        <canvas id="intendentesChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="margin-bottom:0.5rem;">Votos por Lista</h3>
+                        <canvas id="listasChart"></canvas>
+                    </div>
+                </div>
+                <div class="results-section">
+                    <h3 style="margin-bottom:1rem; color:var(--radio-green);">Resultados por Local – Intendentes</h3>
+                    <table class="vote-table">
+                        <thead id="intendentesHeader"></thead>
+                        <tbody id="intendentesBody"></tbody>
+                    </table>
+                </div>
+                <div class="results-section">
+                    <h3 style="margin-bottom:1rem; color:var(--radio-green);">Resultados por Local – Concejales (por lista)</h3>
+                    <table class="vote-table">
+                        <thead id="listasHeader"></thead>
+                        <tbody id="listasBody"></tbody>
+                    </table>
+                </div>
+                <div class="results-section">
+                    <h3 style="margin-bottom:1rem; color:var(--radio-green);">Distribución D'Hondt – Bancas Junta Municipal</h3>
+                    <div id="dhondtResultado"></div>
+                </div>
+                <div class="results-section">
+                    <h3 style="margin-bottom:1rem; color:var(--radio-green);">Concejales Electos (proyección)</h3>
+                    <table class="vote-table">
+                        <thead><tr><th>#</th><th>Lista</th><th>Candidato</th><th>Votos</th></tr></thead>
+                        <tbody id="electosBody"></tbody>
+                    </table>
+                </div>
+                <div class="results-section">
+                    <h3 style="margin-bottom:1rem; color:var(--radio-green);">Detalle de Concejales por Lista</h3>
+                    <div id="concejalesDetalle"></div>
+                </div>
+            </div>
+
+            <!-- TAB CARGA -->
+            <div id="tabCarga" class="tab-content">
+                <div class="admin-quick-vote">
+                    <h3 style="color:white;">Carga Rápida de Votos</h3>
+                    <div class="quick-vote-grid">
+                        <select id="adminLocalSelect">
+                            ${locales.map(l => `<option value="${l}">${l}</option>`).join('')}
+                        </select>
+                        <select id="adminTipoSelect">
+                            <option value="intendente">Intendente</option>
+                            <option value="concejal">Concejal</option>
+                        </select>
+                        <select id="adminCandidatoSelect"></select>
+                        <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" min="1">
+                        <button id="adminRegistrarBtn" class="btn-admin">Registrar Votos</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB USERS -->
+            <div id="tabUsers" class="tab-content">
+                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; margin-bottom:1.5rem;">
+                    <h3 style="color:var(--radio-green); margin-bottom:1rem;">Crear Digitador</h3>
+                    <div class="form-grid">
+                        <input type="text" id="newFullName" placeholder="Nombre completo">
+                        <input type="text" id="newUsername" placeholder="Usuario">
+                        <input type="password" id="newPassword" placeholder="Contraseña">
+                        <select id="newUserLocal">
+                            ${locales.map(l => `<option value="${l}">${l}</option>`).join('')}
+                        </select>
+                        <button id="createUserBtn" class="btn-admin">Crear Usuario</button>
+                    </div>
+                    <h3 style="color:var(--radio-green); margin:1.5rem 0 1rem;">Usuarios Digitadores</h3>
+                    <table class="vote-table">
+                        <thead><tr><th>Nombre</th><th>Usuario</th><th>Local</th><th>Acciones</th></tr></thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB LOGS -->
+            <div id="tabLogs" class="tab-content">
+                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
+                    <h3 style="color:var(--radio-green); margin-bottom:1rem;">Registro de Cargas</h3>
+                    <table class="vote-table">
+                        <thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato</th><th>Concejal</th><th>Votos</th></tr></thead>
+                        <tbody id="allLogsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDigitadorPanel() {
+    document.getElementById("digitadorPanel").innerHTML = `
+        <div class="digitador-container">
+            <div class="digitador-header">
+                <h2><i class="fas fa-keyboard"></i> Panel Digitador – <span id="miLocalSpan"></span></h2>
+                <button id="logoutDigitadorBtn" class="btn-admin logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</button>
+            </div>
+            <div class="carga-card">
+                <h3>Cargar votos – Intendente</h3>
+                <select id="digIntendenteSelect"></select>
+                <input type="number" id="digVotosIntendente" placeholder="Cantidad de votos" min="1">
+                <button id="cargarIntendenteBtn">Registrar Votos Intendente</button>
+            </div>
+            <div class="carga-card">
+                <h3>Cargar votos – Concejal</h3>
+                <select id="digListaSelect"><option value="">Seleccione una lista</option></select>
+                <select id="digConcejalSelect" disabled><option value="">Primero elija lista</option></select>
+                <input type="number" id="digVotosConcejal" placeholder="Cantidad de votos" min="1">
+                <button id="cargarConcejalBtn">Registrar Votos Concejal</button>
+            </div>
+            <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
+                <h3 style="color:var(--radio-green); margin-bottom:1rem;">Mis cargas recientes</h3>
+                <table class="vote-table">
+                    <thead><tr><th>Fecha/Hora</th><th>Tipo</th><th>Candidato</th><th>Votos</th></tr></thead>
+                    <tbody id="misCargasBody"></tbody>
+                </table>
+            </div>
+        </div>
+    `;
 }
 
 // -------------------- LOGIN CON LOGO --------------------
@@ -575,17 +759,17 @@ function showLoginModal() {
             currentUser = found;
             modal.remove();
             if (found.role === "admin") {
+                // 1. Primero renderizar el HTML del panel (crea los elementos en el DOM)
+                renderAdminPanel();
                 document.getElementById("adminPanel").style.display = "block";
                 document.getElementById("digitadorPanel").style.display = "none";
                 document.getElementById("floatingLoginBtn").style.display = "none";
-                renderAdminStats();
-                renderUsersTable();
-                renderAllLogs();
-                // Configurar selects admin (solo ahora que existe el panel)
+
+                // 2. Ahora que los elementos existen, llenar datos y asignar eventos
                 const adminLocal = document.getElementById("adminLocalSelect");
-                if (adminLocal) adminLocal.innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
                 const adminTipo = document.getElementById("adminTipoSelect");
                 const adminCandidato = document.getElementById("adminCandidatoSelect");
+
                 function actualizarAdminSelect() {
                     if (adminTipo.value === "intendente") {
                         adminCandidato.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
@@ -604,6 +788,7 @@ function showLoginModal() {
                 }
                 adminTipo.addEventListener('change', actualizarAdminSelect);
                 actualizarAdminSelect();
+
                 document.getElementById("adminRegistrarBtn").onclick = () => {
                     const local = adminLocal.value;
                     const tipo = adminTipo.value;
@@ -625,25 +810,52 @@ function showLoginModal() {
                     }
                     document.getElementById("adminVotosInput").value = "";
                 };
+
                 // Tabs
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
-                        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
-                        document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-                        document.getElementById('tab'+btn.getAttribute('data-tab').charAt(0).toUpperCase()+btn.getAttribute('data-tab').slice(1)).classList.add('active');
-                        if(btn.getAttribute('data-tab')==='logs') renderAllLogs();
-                        if(btn.getAttribute('data-tab')==='users') renderUsersTable();
-                        if(btn.getAttribute('data-tab')==='stats') renderAdminStats();
+                        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                        const tabName = btn.getAttribute('data-tab');
+                        document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+                        if (tabName === 'logs') renderAllLogs();
+                        if (tabName === 'users') renderUsersTable();
+                        if (tabName === 'stats') renderAdminStats();
                     });
                 });
-                // Llenar select de local para crear usuario (solo ahora)
-                const newUserLocal = document.getElementById("newUserLocal");
-                if (newUserLocal) newUserLocal.innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
+
+                // Crear usuario
+                document.getElementById('createUserBtn').addEventListener('click', () => {
+                    const fullName = document.getElementById('newFullName').value.trim();
+                    const username = document.getElementById('newUsername').value.trim();
+                    const password = document.getElementById('newPassword').value.trim();
+                    const local = document.getElementById('newUserLocal').value;
+                    if (!fullName || !username || !password) { alert("Complete todos los campos"); return; }
+                    if (users.find(u => u.username === username)) { alert("El usuario ya existe"); return; }
+                    users.push({ fullName, username, password, localAsignado: local, role: "digitador" });
+                    persistAll();
+                    renderUsersTable();
+                    document.getElementById('newFullName').value = '';
+                    document.getElementById('newUsername').value = '';
+                    document.getElementById('newPassword').value = '';
+                    alert("Usuario digitador creado");
+                });
+
+                document.getElementById('logoutAdminBtn').addEventListener('click', logout);
+
+                // 3. Renderizar datos
+                renderAdminStats();
+                renderUsersTable();
+                renderAllLogs();
+
             } else {
+                // Digitador
+                renderDigitadorPanel();
                 document.getElementById("digitadorPanel").style.display = "block";
                 document.getElementById("adminPanel").style.display = "none";
                 document.getElementById("floatingLoginBtn").style.display = "none";
+                document.getElementById('logoutDigitadorBtn').addEventListener('click', logout);
                 loadDigitadorInterface();
             }
         } else {
@@ -684,52 +896,8 @@ async function startApp() {
         console.error("Botón flotante no encontrado");
     }
     
-    document.getElementById('logoutAdminBtn')?.addEventListener('click', logout);
-    document.getElementById('logoutDigitadorBtn')?.addEventListener('click', logout);
-    
-    document.getElementById('cargarIntendenteBtn')?.addEventListener('click', () => {
-        if(!currentUser || currentUser.role !== 'digitador') return;
-        const id = document.getElementById('digIntendenteSelect').value;
-        const votos = parseInt(document.getElementById('digVotosIntendente').value);
-        if (votos > 0 && registrarVoto(currentUser.localAsignado, "intendente", id, votos, currentUser.username)) {
-            alert(`Voto intendente registrado: +${votos}`);
-            document.getElementById('digVotosIntendente').value = '';
-            renderMisCargas();
-        } else alert("Cantidad inválida");
-    });
-    
-    document.getElementById('cargarConcejalBtn')?.addEventListener('click', () => {
-        if(!currentUser || currentUser.role !== 'digitador') return;
-        const listaId = document.getElementById('digListaSelect').value;
-        const concejalTexto = document.getElementById('digConcejalSelect').value;
-        if (!listaId || !concejalTexto) { alert("Seleccione lista y concejal"); return; }
-        const concejalObj = concejalesIndividuales.find(c => c.lista === listaId && `${c.opcion} — ${c.nombre}` === concejalTexto);
-        if (!concejalObj) { alert("Error al identificar concejal"); return; }
-        const votos = parseInt(document.getElementById('digVotosConcejal').value);
-        if (votos <= 0) { alert("Cantidad inválida"); return; }
-        if (registrarVoto(currentUser.localAsignado, "concejal", concejalObj.id, votos, currentUser.username, concejalObj.nombre, listaId)) {
-            alert(`Voto a concejal registrado: +${votos} para ${concejalObj.nombre}`);
-            document.getElementById('digVotosConcejal').value = '';
-            renderMisCargas();
-        } else alert("Error al registrar");
-    });
-    
-    document.getElementById('createUserBtn')?.addEventListener('click', () => {
-        if (currentUser?.role !== 'admin') return;
-        const fullName = document.getElementById('newFullName').value.trim();
-        const username = document.getElementById('newUsername').value.trim();
-        const password = document.getElementById('newPassword').value.trim();
-        const local = document.getElementById('newUserLocal').value;
-        if (!fullName || !username || !password) { alert("Complete todos los campos"); return; }
-        if (users.find(u=>u.username===username)) { alert("El usuario ya existe"); return; }
-        users.push({ fullName, username, password, localAsignado: local, role: "digitador" });
-        persistAll();
-        renderUsersTable();
-        document.getElementById('newFullName').value = '';
-        document.getElementById('newUsername').value = '';
-        document.getElementById('newPassword').value = '';
-        alert("Usuario digitador creado");
-    });
+    // Los event listeners de logout, digitador y admin se asignan dinámicamente
+    // dentro de showLoginModal() una vez que se renderizan los paneles.
 }
 
 startApp();
