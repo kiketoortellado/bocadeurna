@@ -18,6 +18,7 @@
             }
         }
     </script>
+    <script type="module" src="app.js"></script>
     <style>
         .admin-panel, .digitador-panel { display: none; }
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
@@ -27,7 +28,7 @@
 <div class="container">
     <div class="radio-header">
         <div class="brand">
-            <h1><img src="assets/logo_nasa.png" alt="Logo" class="logo-radio" onerror="this.src='https://via.placeholder.com/60?text=Logo'"> Radio Ñasaindy 620 AM</h1>
+            <h1><img src="assets/logo_nasa.png" alt="Logo" class=\"logo-radio\" onerror="this.src='https://via.placeholder.com/60?text=Logo'"> Radio Ñasaindy 620 AM</h1>
             <p>Elecciones Municipales 2026 · San Estanislao</p>
         </div>
         <div class="election-badge"><i class="fas fa-vote-yea"></i> BOCA DE URNA OFICIAL</div>
@@ -38,15 +39,6 @@
 </div>
 
 <button id="floatingLoginBtn" class="floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
-<div id="loadingOverlay"><div style="background:white; padding:2rem; border-radius:1rem; color:#1a2e2a;">Cargando datos...</div></div>
-
-<script type="module" src="app.js"></script>
-<script>
-    // Fallback para ocultar overlay si algo falla
-    setTimeout(function() {
-        var overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.style.display = 'none';
-    }, 5000);
-</script>
+<div id="loadingOverlay"><div style="background:white; padding:2rem; border-radius:1rem; text-align:center;"><div class="spinner"></div><p style="margin:0; font-weight:600; color:#1a2e2a;">Cargando sistema...</p></div></div>
 </body>
 </html>
