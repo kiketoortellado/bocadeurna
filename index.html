@@ -14,14 +14,14 @@
     <div class="radio-header">
         <div class="brand">
             <h1><i class="fas fa-microphone-alt"></i> Radio Ñasaindy 620 AM</h1>
-            <p>Distrito de Santaní · Elecciones Municipales 2026</p>
+            <p>Distrito de San Estanislao (Santaní) · Elecciones Municipales 2026</p>
         </div>
         <div class="election-badge">
             <i class="fas fa-vote-yea"></i> BOCA DE URNA OFICIAL
         </div>
     </div>
 
-    <!-- Panel ADMIN (estadísticas + gestión + carga rápida) -->
+    <!-- Panel ADMIN -->
     <div id="adminPanel" style="display: none;">
         <div class="admin-tabs">
             <button class="tab-btn active" data-tab="stats"><i class="fas fa-chart-line"></i> Estadísticas</button>
@@ -29,22 +29,17 @@
             <button class="tab-btn" data-tab="logs"><i class="fas fa-history"></i> Registro de Cargas</button>
         </div>
 
-        <!-- Pestaña Estadísticas (con D'Hondt y carga rápida para admin) -->
         <div id="tabStats" class="tab-content active">
             <div class="hero">
-                <h2><i class="fas fa-chart-line"></i> Resultados provisorios – Santaní</h2>
+                <h2><i class="fas fa-chart-line"></i> Resultados provisorios – San Estanislao</h2>
                 <p>Actualización en tiempo real desde los locales de votación</p>
             </div>
 
-            <!-- MÓDULO DE CARGA RÁPIDA PARA ADMIN -->
+            <!-- Módulo de carga rápida admin -->
             <div class="admin-quick-vote">
                 <h3><i class="fas fa-bolt"></i> Registro rápido de votos (Admin)</h3>
                 <div class="quick-vote-grid">
-                    <select id="adminLocalSelect">
-                        <option value="Gimnasio Municipal">Gimnasio Municipal</option>
-                        <option value="Colegio Nacional Sebastián de Yegros">Colegio Nacional Sebastián de Yegros</option>
-                        <option value="Esc. Carlos Antonio López">Esc. Carlos Antonio López</option>
-                    </select>
+                    <select id="adminLocalSelect"></select>
                     <select id="adminTipoSelect">
                         <option value="intendente">Intendente</option>
                         <option value="concejal">Concejal (individual)</option>
@@ -62,16 +57,14 @@
             <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table></div></div>
             <div class="results-section"><h3><i class="fas fa-list-check"></i> Votos por Lista de Concejales (por local)</h3><div style="overflow-x:auto;"><table class="vote-table" id="listasPorLocalTable"><thead id="listasHeader"></thead><tbody id="listasBody"></tbody></table></div></div>
             
-            <!-- Sistema D'Hondt -->
             <div class="results-section" style="background: #faf0e6;">
-                <h3><i class="fas fa-calculator"></i> Sistema D'Hondt – Distribución de 12 Bancas a Concejales</h3>
+                <h3><i class="fas fa-calculator"></i> Sistema D'Hondt – Distribución de Bancas a Concejales</h3>
                 <div id="dhondtResultado"></div>
             </div>
 
             <div class="results-section"><h3><i class="fas fa-user-friends"></i> Candidatos a Concejal por Lista (ordenados) - Totales acumulados</h3><div id="concejalesDetalle"></div></div>
         </div>
 
-        <!-- Pestaña Gestión de Usuarios (con nombre completo y edición de contraseña) -->
         <div id="tabUsers" class="tab-content">
             <div class="admin-area">
                 <h3><i class="fas fa-user-plus"></i> Crear nuevo usuario digitador</h3>
@@ -79,23 +72,15 @@
                     <input type="text" id="newFullName" placeholder="Nombre y Apellido">
                     <input type="text" id="newUsername" placeholder="Usuario (único)">
                     <input type="password" id="newPassword" placeholder="Contraseña">
-                    <select id="newUserLocal">
-                        <option value="Gimnasio Municipal">Gimnasio Municipal</option>
-                        <option value="Colegio Nacional Sebastián de Yegros">Colegio Nacional Sebastián de Yegros</option>
-                        <option value="Esc. Carlos Antonio López">Esc. Carlos Antonio López</option>
-                    </select>
+                    <select id="newUserLocal"></select>
                     <button id="createUserBtn" style="grid-column: span 2;">Crear Usuario</button>
                 </div>
                 <h3 style="margin-top:1.5rem;">Usuarios digitadores existentes</h3>
-                <table class="vote-table" id="usersTable">
-                    <thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead>
-                    <tbody id="usersTableBody"></tbody>
-                </table>
+                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody>能有</table>
                 <button id="logoutAdminBtn" class="btn-admin logout-btn" style="margin-top:1rem;"><i class="fas fa-sign-out-alt"></i> Cerrar sesión Admin</button>
             </div>
         </div>
 
-        <!-- Pestaña Registro de Cargas -->
         <div id="tabLogs" class="tab-content">
             <div class="admin-area">
                 <h3><i class="fas fa-list-alt"></i> Todas las cargas realizadas</h3>
@@ -104,7 +89,7 @@
         </div>
     </div>
 
-    <!-- Panel DIGITADOR (solo carga de votos + historial personal) -->
+    <!-- Panel DIGITADOR -->
     <div id="digitadorPanel" style="display: none;">
         <div class="digitador-container">
             <div class="digitador-header">
@@ -113,10 +98,7 @@
             </div>
             <div class="carga-card">
                 <h4><i class="fas fa-user-check"></i> Voto para Intendente (obligatorio)</h4>
-                <select id="digIntendenteSelect">
-                    <option value="carlos_veron">Ing. Carlitos Verón (Lista 2C)</option>
-                    <option value="christian_decc">Christian D'Ecclesiis (Lista 2D)</option>
-                </select>
+                <select id="digIntendenteSelect"></select>
                 <input type="number" id="digVotosIntendente" placeholder="Cantidad de votos" value="0" min="1">
                 <button id="cargarIntendenteBtn"><i class="fas fa-vote-yea"></i> Registrar voto intendente</button>
             </div>
@@ -136,10 +118,11 @@
         </div>
     </div>
 
-    <div class="footer-note"><i class="fas fa-chart-line"></i> Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales Santaní 2026</div>
+    <div class="footer-note"><i class="fas fa-chart-line"></i> Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales San Estanislao 2026</div>
 </div>
 
 <button id="floatingLoginBtn" class="btn-admin floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
+<div id="loadingOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:2000;"><div style="background:white; padding:2rem; border-radius:1rem;">Cargando datos electorales...</div></div>
 
 <script src="app.js"></script>
 </body>
