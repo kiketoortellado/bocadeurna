@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Boca de Urna Santaní | Radio Ñasaindy 620AM</title>
+    <title>Radio Ñasaindy 620AM | Boca de Urna Electrónica – San Estanislao</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -19,16 +19,28 @@
         }
     </script>
     <style>
+        /* Base mínimo — el resto lo inyecta app.js para evitar conflictos de doble versión */
         .admin-panel, .digitador-panel { display: none; }
-        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(7, 51, 37, 0.92);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 3000;
+        }
+        /* Ocultar botón flotante — el login se abre automáticamente */
+        #floatingLoginBtn { display: none !important; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="radio-header">
         <div class="brand">
-            <h1><img src="assets/logo_nasa.png" alt="Logo" class="logo-radio" onerror="this.src='https://via.placeholder.com/60?text=Logo'"> Radio Ñasaindy 620 AM</h1>
-            <p>Elecciones Municipales 2026 · San Estanislao</p>
+            <h1>
+                <img src="assets/logo_nasa.png" alt="Logo Radio Ñasaindy" class="logo-radio"
+                     onerror="this.style.display='none'">
+                Radio Ñasaindy 620 AM
+            </h1>
+            <p>Boca de Urna Electrónica · Elecciones Municipales 2026 · San Estanislao</p>
         </div>
         <div class="election-badge"><i class="fas fa-vote-yea"></i> BOCA DE URNA OFICIAL</div>
     </div>
@@ -37,16 +49,25 @@
     <div class="footer-note">Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales San Estanislao 2026</div>
 </div>
 
-<button id="floatingLoginBtn" class="floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
-<div id="loadingOverlay"><div style="background:white; padding:2rem; border-radius:1rem; color:#1a2e2a;">Cargando datos...</div></div>
+<!-- Botón oculto — se mantiene en el DOM porque app.js lo referencia, pero nunca se muestra -->
+<button id="floatingLoginBtn" style="display:none !important;" aria-hidden="true"></button>
+
+<div id="loadingOverlay">
+    <div style="text-align:center; color:white;">
+        <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.2);border-top-color:#df1660;border-radius:50%;animation:_spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+        <p style="font-size:1.1rem;font-weight:700;margin:0;">Radio Ñasaindy 620AM</p>
+        <p style="font-size:0.82rem;opacity:0.7;margin:4px 0 0;">Cargando padrón electoral...</p>
+    </div>
+</div>
+<style>@keyframes _spin{to{transform:rotate(360deg)}}</style>
 
 <script type="module" src="app.js"></script>
 <script>
-    // Fallback para ocultar overlay si algo falla
+    // Fallback seguro: si en 8 s la app no ocultó el overlay, lo ocultamos y mostramos el login
     setTimeout(function() {
-        var overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.style.display = 'none';
-    }, 5000);
+        var ov = document.getElementById('loadingOverlay');
+        if (ov && ov.style.display !== 'none') ov.style.display = 'none';
+    }, 8000);
 </script>
 </body>
 </html>
