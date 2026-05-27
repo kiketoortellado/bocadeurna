@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, browserLocalPersistence, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch, getDocs } from "firebase/firestore";
+// CORRECCIÓN: Se importó 'where' para consultas seguras y eficientes
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch, getDocs, where } from "firebase/firestore";
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -172,10 +173,10 @@ async function inicializarVotosEnFirestore() {
 
 async function crearAdminInicial() {
     const adminUsername = "Admin";
-    // Normalizar email a minúsculas
-    const adminEmail = `${adminUsername.toLowerCase()}@bocadeurna.local`; // admin@bocadeurna.local
+    const adminEmail = `${adminUsername.toLowerCase()}@bocadeurna.local`;
     const adminPassword = "620rnasa";
-    const adminDocRef = doc(db, "users", adminUsername);
+    // CORRECCIÓN: Guardar el documento del admin en minúsculas para unificación de ids
+    const adminDocRef = doc(db, "users", adminUsername.toLowerCase());
     const adminSnap = await getDoc(adminDocRef);
     if (!adminSnap.exists()) {
         try {
@@ -191,8 +192,7 @@ async function crearAdminInicial() {
             console.log("Usuario administrador creado");
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
-                console.log("Admin ya existe en Auth. Sincronizando...");
-                // Opcional: actualizar el documento si falta
+                console.log("Admin ya existe en Auth.");
             } else {
                 console.error("Error creando admin:", error);
             }
@@ -588,12 +588,12 @@ function renderDetalleConcejales(candidatosPorListaOriginal) {
 // -------------------- ADMIN: USUARIOS Y LOGS --------------------
 async function crearDigitador(fullName, username, password, local) {
     try {
-        // Normalizar username a minúsculas para el email
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCred.user.uid;
-        await setDoc(doc(db, "users", username), {  // Guardamos el username original como clave (con mayúsculas si las tiene)
+        // CORRECCIÓN: Guardar el documento del digitador con id en minúsculas
+        await setDoc(doc(db, "users", normalizedUsername), {
             uid: uid,
             username: username,
             fullName: fullName,
@@ -609,14 +609,15 @@ async function crearDigitador(fullName, username, password, local) {
 }
 
 async function eliminarDigitador(username) {
-    if(confirm(`¿Eliminar usuario ${username}? Solo se borrará de la base de datos local, no de Auth.`)){
-        await setDoc(doc(db, "users", username), { disabled: true }, { merge: true });
+    if(confirm(`¿Eliminar usuario ${username}? Solo se deshabilitará de la base de datos local.`)){
+        // CORRECCIÓN: Se actualiza usando la clave unificada en minúsculas
+        await setDoc(doc(db, "users", username.toLowerCase()), { disabled: true }, { merge: true });
         renderUsersTable();
     }
 }
 
 async function cambiarPasswordDigitador(username, newPass) {
-    alert("Para cambiar contraseña, usa la consola de Firebase Auth o implementa una función cloud.");
+    alert("Para cambiar contraseñas de forma segura, utilice la consola de administración en Firebase Auth.");
 }
 
 async function renderUsersTable() {
@@ -741,6 +742,12 @@ function loadDigitadorInterface() {
             renderMisCargas();
         } else alert("Error al registrar");
     };
+
+    // CORRECCIÓN: Se asignó el evento clic correspondiente al botón de salir del panel digitador
+    const logoutDigitadorBtn = document.getElementById('logoutDigitadorBtn');
+    if (logoutDigitadorBtn) {
+        logoutDigitadorBtn.onclick = logout;
+    }
 }
 
 function renderMisCargas() {
@@ -872,7 +879,8 @@ function setupAdminEvents() {
             const selected = adminCandidato.options[adminCandidato.selectedIndex];
             const concejalId = selected.value;
             const listaId = selected.getAttribute("data-lista");
-            const concejalNombre = selected.text.split(' - ')[1];
+            // CORRECCIÓN: Se procesa la cadena usando la raya larga ' — ' para extraer limpiamente solo el nombre
+            const concejalNombre = selected.text.split(' — ')[1] || selected.text;
             if (await registrarVoto(local, "concejal", concejalId, votos, currentUser.username, concejalNombre, listaId)) {
                 alert("Voto registrado");
             } else alert("Error");
@@ -902,13 +910,18 @@ function setupAdminEvents() {
 // -------------------- LOGIN Y AUTENTICACIÓN --------------------
 async function login(username, password) {
     try {
-        // Normalizar el nombre de usuario a minúsculas para el email
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, "users", username)); // El documento se guarda con el username original (Admin, no admin)
+        // CORRECCIÓN: Se solicita el documento en minúsculas unificadas
+        const userDoc = await getDoc(doc(db, "users", normalizedUsername));
         if (userDoc.exists()) {
             const userData = userDoc.data();
+            if (userData.disabled) {
+                alert("El usuario está deshabilitado.");
+                await signOut(auth);
+                return;
+            }
             currentUser = { ...userData, uid: userCred.user.uid };
             if (currentUser.role === 'admin') {
                 renderAdminPanel();
@@ -960,10 +973,14 @@ function showLoginModal() {
     `;
     document.body.appendChild(modal);
     const doLogin = () => {
-        const user = document.getElementById('loginUser').value;
+        const user = document.getElementById('loginUser').value.trim();
         const pass = document.getElementById('loginPass').value;
-        login(user, pass);
-        modal.remove();
+        if (user && pass) {
+            login(user, pass);
+            modal.remove();
+        } else {
+            alert("Ingrese usuario y contraseña");
+        }
     };
     document.getElementById('loginBtn').addEventListener('click', doLogin);
     document.getElementById('closeModalBtn').addEventListener('click', () => modal.remove());
@@ -983,11 +1000,18 @@ async function startApp() {
     
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            const usersSnapshot = await getDocs(collection(db, "users"));
+            // CORRECCIÓN: Optimización de rendimiento y seguridad. Consulta filtrada en vez de descargar toda la colección.
+            const q = query(collection(db, "users"), where("uid", "==", user.uid));
+            const usersSnapshot = await getDocs(q);
             let userData = null;
-            usersSnapshot.forEach(doc => {
-                if (doc.data().uid === user.uid) userData = { ...doc.data(), uid: user.uid };
-            });
+            
+            if (!usersSnapshot.empty) {
+                const docSnap = usersSnapshot.docs[0];
+                if (!docSnap.data().disabled) {
+                    userData = { ...docSnap.data(), uid: user.uid };
+                }
+            }
+            
             if (userData) {
                 currentUser = userData;
                 if (currentUser.role === 'admin') {
