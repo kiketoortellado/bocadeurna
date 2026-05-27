@@ -357,7 +357,7 @@ function renderTablaIntendentesPorLocal() {
     const thead = document.getElementById("intendentesHeader");
     const tbody = document.getElementById("intendentesBody");
     if(!thead) return;
-    let header = "<tr><th>Local</th>";
+    let header = "<td><th>Local</th>";
     intendentes.forEach(i=>{ header+=`<th>${i.nombre} (${i.lista})</th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -373,7 +373,7 @@ function renderTablaIntendentesPorLocal() {
     let filaTotal = `<tr style="background:#f7ede3; font-weight:bold;"><td>TOTAL GENERAL</td>`;
     intendentes.forEach(i=>{ filaTotal+=`<td>${totalG[i.id].toLocaleString()}</td>`; });
     filaTotal+=`<td>${(Object.values(totalG).reduce((a,b)=>a+b,0)).toLocaleString()}</td></tr>`;
-    tbody.innerHTML = body;
+    tbody.innerHTML = body + filaTotal;
 }
 
 function renderTablaListasPorLocal() {
@@ -407,13 +407,13 @@ function renderTablaListasPorLocal() {
     let filaTotal="<tr style='background:#f7ede3;font-weight:bold;'><td>TOTAL GENERAL</td>";
     Object.keys(listasConcejales).forEach(lid=>{ let v=totalL[lid]; filaTotal+=`<td>${v.toLocaleString()}</td>`; sumaTotal+=v; });
     filaTotal+=`<td>${sumaTotal.toLocaleString()}</td></tr>`;
-    tbody.innerHTML = body;
+    tbody.innerHTML = body + filaTotal;
 }
 
 function renderDhondt(votosPorLista, bancasPorLista) {
     const container = document.getElementById("dhondtResultado");
     if (!container) return;
-    let html = `<table class="vote-table"><thead><tr><th>Lista</th><th>Votos totales de la lista</th><th>Bancas asignadas</th><tr></thead><tbody>`;
+    let html = `<table class="vote-table"><thead><tr><th>Lista</th><th>Votos totales de la lista</th><th>Bancas asignadas</th></tr></thead><tbody>`;
     const listasOrdenadas = Object.keys(votosPorLista).sort((a,b)=>votosPorLista[b]-votosPorLista[a]);
     for (let lid of listasOrdenadas) {
         html += `<tr>
@@ -511,6 +511,13 @@ function loadDigitadorInterface() {
     document.getElementById("digitadorPanel").style.display = "block";
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("miLocalSpan").innerText = currentUser.localAsignado;
+    
+    // Llenar select de intendentes en panel digitador
+    const digIntendenteSelect = document.getElementById("digIntendenteSelect");
+    if (digIntendenteSelect) {
+        digIntendenteSelect.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
+    }
+    
     const listaSelect = document.getElementById("digListaSelect");
     listaSelect.innerHTML = '<option value="">Seleccione una lista</option>';
     for (const [lid, info] of Object.entries(listasConcejales)) {
@@ -574,9 +581,9 @@ function showLoginModal() {
                 renderAdminStats();
                 renderUsersTable();
                 renderAllLogs();
-                // Configurar selects admin
+                // Configurar selects admin (solo ahora que existe el panel)
                 const adminLocal = document.getElementById("adminLocalSelect");
-                adminLocal.innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
+                if (adminLocal) adminLocal.innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
                 const adminTipo = document.getElementById("adminTipoSelect");
                 const adminCandidato = document.getElementById("adminCandidatoSelect");
                 function actualizarAdminSelect() {
@@ -630,6 +637,9 @@ function showLoginModal() {
                         if(btn.getAttribute('data-tab')==='stats') renderAdminStats();
                     });
                 });
+                // Llenar select de local para crear usuario (solo ahora)
+                const newUserLocal = document.getElementById("newUserLocal");
+                if (newUserLocal) newUserLocal.innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
             } else {
                 document.getElementById("digitadorPanel").style.display = "block";
                 document.getElementById("adminPanel").style.display = "none";
@@ -665,10 +675,15 @@ async function startApp() {
     //         .catch(err => console.error('Error al registrar SW:', err));
     // }
 
-    document.getElementById("newUserLocal").innerHTML = locales.map(l => `<option value="${l}">${l}</option>`).join('');
-    document.getElementById("digIntendenteSelect").innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
+    // No se llenan selects que aún no existen en el DOM (están dentro de paneles ocultos)
+    // El evento del botón flotante se asigna siempre
+    const floatingBtn = document.getElementById('floatingLoginBtn');
+    if (floatingBtn) {
+        floatingBtn.addEventListener('click', showLoginModal);
+    } else {
+        console.error("Botón flotante no encontrado");
+    }
     
-    document.getElementById('floatingLoginBtn').addEventListener('click', showLoginModal);
     document.getElementById('logoutAdminBtn')?.addEventListener('click', logout);
     document.getElementById('logoutDigitadorBtn')?.addEventListener('click', logout);
     
