@@ -266,7 +266,6 @@ function renderAdminStats() {
     renderDetalleConcejales(resultados.candidatosPorListaOriginal);
     renderMiniResumen();
     
-    // Gráfico intendentes (torta con porcentaje siempre visible)
     const totalInt = totalIntendentes();
     const totalIntSum = Object.values(totalInt).reduce((a,b)=>a+b,0);
     const ctxInt = document.getElementById('intendentesChart')?.getContext('2d');
@@ -300,7 +299,6 @@ function renderAdminStats() {
         });
     }
     
-    // Gráfico listas de concejales (barras verticales con porcentaje)
     const totalListas = resultados.votosPorLista;
     const totalListasSum = Object.values(totalListas).reduce((a,b)=>a+b,0);
     const ctxList = document.getElementById('listasChart')?.getContext('2d');
@@ -415,7 +413,7 @@ function renderTablaListasPorLocal() {
 function renderDhondt(votosPorLista, bancasPorLista) {
     const container = document.getElementById("dhondtResultado");
     if (!container) return;
-    let html = `<table class="vote-table"><thead><tr><th>Lista</th><th>Votos totales de la lista</th><th>Bancas asignadas</th></tr></thead><tbody>`;
+    let html = `<table class="vote-table"><thead><tr><th>Lista</th><th>Votos totales de la lista</th><th>Bancas asignadas</th><tr></thead><tbody>`;
     const listasOrdenadas = Object.keys(votosPorLista).sort((a,b)=>votosPorLista[b]-votosPorLista[a]);
     for (let lid of listasOrdenadas) {
         html += `<tr>
@@ -500,7 +498,8 @@ function renderAllLogs() {
     if(!tbody) return;
     tbody.innerHTML = cargas.slice(0,200).map(c => `
         <tr>
-            <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.usuario}</td><td>${c.local}</td><td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
+            <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.usuario}</td><td>${c.local}</td>
+            <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
             <td>${c.candidatoId ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.listaId ? `Lista ${c.listaId}` : '')}</td>
             <td>${c.concejalNombre || '-'}</td><td>${c.votos}</td>
         </tr>
@@ -541,11 +540,11 @@ function renderMisCargas() {
             <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
             <td>${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
             <td>${c.votos}</td>
-        </table>
+        </tr>
     `).join("");
 }
 
-// -------------------- LOGIN (CORREGIDO: LOGO EN LUGAR DEL MICRÓFONO) --------------------
+// -------------------- LOGIN CON LOGO --------------------
 function showLoginModal() {
     const modal = document.createElement('div');
     modal.className = 'login-modal';
@@ -659,7 +658,7 @@ async function startApp() {
     if (!success) return;
     loadPersistentData();
 
-    // Service Worker comentado para evitar error 404
+    // Service Worker desactivado para evitar error 404
     // if ('serviceWorker' in navigator) {
     //     navigator.serviceWorker.register('/sw.js')
     //         .then(reg => console.log('Service Worker registrado', reg))
