@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, browserLocalPersistence, signOut, onAuthStateChanged } from "firebase/auth";
-// CORRECCIÓN: Se importó 'where' para consultas seguras y eficientes
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch, getDocs, where } from "firebase/firestore";
 
 // Configuración de Firebase
@@ -113,7 +112,6 @@ async function cargarDatosDesdeCSV() {
                 listasConcejales[lista].candidatos[opcion-1] = { opcion, nombre: row.Nombre };
             }
         }
-        // Limpiar huecos
         for (let lista in listasConcejales) {
             listasConcejales[lista].candidatos = listasConcejales[lista].candidatos.filter(c => c);
             listasConcejales[lista].candidatos.sort((a,b) => a.opcion - b.opcion);
@@ -168,14 +166,12 @@ async function inicializarVotosEnFirestore() {
         }
     }
     await batch.commit();
-    console.log("Estructuras de votos verificadas/inicializadas");
 }
 
 async function crearAdminInicial() {
     const adminUsername = "Admin";
     const adminEmail = `${adminUsername.toLowerCase()}@bocadeurna.local`;
     const adminPassword = "620rnasa";
-    // CORRECCIÓN: Guardar el documento del admin en minúsculas para unificación de ids
     const adminDocRef = doc(db, "users", adminUsername.toLowerCase());
     const adminSnap = await getDoc(adminDocRef);
     if (!adminSnap.exists()) {
@@ -189,11 +185,8 @@ async function crearAdminInicial() {
                 role: "admin",
                 localAsignado: null
             });
-            console.log("Usuario administrador creado");
         } catch (error) {
-            if (error.code === 'auth/email-already-in-use') {
-                console.log("Admin ya existe en Auth.");
-            } else {
+            if (error.code !== 'auth/email-already-in-use') {
                 console.error("Error creando admin:", error);
             }
         }
@@ -468,13 +461,13 @@ function renderMiniResumen() {
     const totalIntSum = Object.values(totalInt).reduce((a,b)=>a+b,0);
     const resumenInt = document.getElementById("resumenIntendentes");
     if (resumenInt) {
-        resumenInt.innerHTML = intendentes.map(i => `<p>${i.nombre}: <strong>${totalInt[i.id].toLocaleString()}</strong> (${totalIntSum ? ((totalInt[i.id]/totalIntSum)*100).toFixed(1) : 0}%)</p>`).join('');
+        resumenInt.innerHTML = intendentes.map(i => `<p style="color:#1a2e2a;">${i.nombre}: <strong>${totalInt[i.id].toLocaleString()}</strong> (${totalIntSum ? ((totalInt[i.id]/totalIntSum)*100).toFixed(1) : 0}%)</p>`).join('');
     }
     const totalListas = totalVotosPorLista();
     const totalListasSum = Object.values(totalListas).reduce((a,b)=>a+b,0);
     const resumenConc = document.getElementById("resumenConcejales");
     if (resumenConc) {
-        resumenConc.innerHTML = Object.keys(listasConcejales).map(lid => `<p>Lista ${lid}: <strong>${(totalListas[lid]||0).toLocaleString()}</strong> (${totalListasSum ? ((totalListas[lid]/totalListasSum)*100).toFixed(1) : 0}%)</p>`).join('');
+        resumenConc.innerHTML = Object.keys(listasConcejales).map(lid => `<p style="color:#1a2e2a;">Lista ${lid}: <strong>${(totalListas[lid]||0).toLocaleString()}</strong> (${totalListasSum ? ((totalListas[lid]/totalListasSum)*100).toFixed(1) : 0}%)</p>`).join('');
     }
 }
 
@@ -492,7 +485,7 @@ function renderTablaIntendentesPorLocal() {
         let sumaLocal=0;
         const data = votosIntendentes[local] || {};
         intendentes.forEach(i=>{ let v=data[i.id]||0; fila+=`<td>${v.toLocaleString()}</td>`; sumaLocal+=v; });
-        fila+=`<td class="total-votes">${sumaLocal.toLocaleString()}</td></tr>`;
+        fila+=`<td class="total-votes" style="font-weight:bold;">${sumaLocal.toLocaleString()}</td></tr>`;
         body+=fila;
     });
     const totalG = totalIntendentes();
@@ -526,7 +519,7 @@ function renderTablaListasPorLocal() {
             fila+=`<td>${v.toLocaleString()}</td>`;
             sumaLocal+=v;
         });
-        fila+=`<td class="total-votes">${sumaLocal.toLocaleString()}</td></tr>`;
+        fila+=`<td class="total-votes" style="font-weight:bold;">${sumaLocal.toLocaleString()}</td></tr>`;
         body+=fila;
     });
     const totalL = totalVotosPorLista();
@@ -546,7 +539,7 @@ function renderDhondt(votosPorLista, bancasPorLista) {
         html += `<tr>
             <td><strong>Lista ${lid}</strong><br><small>${listasConcejales[lid].nombre}</small></td>
             <td>${votosPorLista[lid].toLocaleString()}</td>
-            <td style="font-weight:bold;">${bancasPorLista[lid]||0}</td>
+            <td style="font-weight:bold; color:var(--radio-fuchsia); font-size:1.1rem;">${bancasPorLista[lid]||0}</td>
         </tr>`;
     }
     html += `</tbody></table>`;
@@ -558,7 +551,7 @@ function renderElectos(electos) {
     if (electosBody) {
         electosBody.innerHTML = electos.map((c, idx) => `
             <tr>
-                <td>${idx+1}°</td><td>Lista ${c.lista}</td><td>${c.nombre}</td><td>${c.votos.toLocaleString()}</td>
+                <td style="font-weight:bold;">${idx+1}°</td><td>Lista ${c.lista}</td><td class="candidate-name">${c.nombre}</td><td style="font-weight:bold;">${c.votos.toLocaleString()}</td>
             </tr>
         `).join('');
     }
@@ -570,14 +563,16 @@ function renderDetalleConcejales(candidatosPorListaOriginal) {
     let html = `<div style="display:flex; flex-wrap:wrap; gap:1rem;">`;
     for (const [lid, candidatos] of Object.entries(candidatosPorListaOriginal)) {
         const listaInfo = listasConcejales[lid];
-        html += `<div style="flex:1; min-width:240px; background:#fef9ef; border-radius:1rem; padding:1rem; border-left:6px solid ${listaInfo.color};">
-            <h4>Lista ${lid} – ${listaInfo.nombre}</h4>
-            <p><strong>Total votos lista:</strong> ${candidatos.reduce((sum,c)=>sum+c.votos,0).toLocaleString()}</p>
+        // CORRECCIÓN: Añadido color explícito oscuro al bloque de desglose por listas individuales
+        html += `<div style="flex:1; min-width:240px; background:#fef9ef; border-radius:1rem; padding:1rem; border-left:6px solid ${listaInfo.color}; color:#1a2e2a;">
+            <h4 style="color:var(--radio-green); margin-bottom:0.3rem;">Lista ${lid}</h4>
+            <p style="font-size:0.8rem; opacity:0.8; margin-bottom:0.5rem;">${listaInfo.nombre}</p>
+            <p style="font-size:0.9rem; margin-bottom:0.5rem;"><strong>Votos lista:</strong> ${candidatos.reduce((sum,c)=>sum+c.votos,0).toLocaleString()}</p>
             <table class="detalle-sin-bordes">
                 <thead><tr><th>N°</th><th>Candidato</th><th>Votos</th></tr></thead>
                 <tbody>`;
         candidatos.forEach(c => {
-            html += `<tr><td>${c.opcion}</td><td>${c.nombre}</td><td style="text-align:right;">${c.votos.toLocaleString()}</td></tr>`;
+            html += `<tr><td>${c.opcion}</td><td>${c.nombre}</td><td style="text-align:right; font-weight:bold;">${c.votos.toLocaleString()}</td></tr>`;
         });
         html += `</tbody></table></div>`;
     }
@@ -592,7 +587,6 @@ async function crearDigitador(fullName, username, password, local) {
         const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCred.user.uid;
-        // CORRECCIÓN: Guardar el documento del digitador con id en minúsculas
         await setDoc(doc(db, "users", normalizedUsername), {
             uid: uid,
             username: username,
@@ -610,7 +604,6 @@ async function crearDigitador(fullName, username, password, local) {
 
 async function eliminarDigitador(username) {
     if(confirm(`¿Eliminar usuario ${username}? Solo se deshabilitará de la base de datos local.`)){
-        // CORRECCIÓN: Se actualiza usando la clave unificada en minúsculas
         await setDoc(doc(db, "users", username.toLowerCase()), { disabled: true }, { merge: true });
         renderUsersTable();
     }
@@ -631,10 +624,10 @@ async function renderUsersTable() {
     });
     tbody.innerHTML = usersList.map(u => `
         <tr>
-            <td>${u.fullName}</td><td>${u.username}</td><td>${u.localAsignado}</td>
+            <td style="color:#1a2e2a;">${u.fullName}</td><td style="color:#1a2e2a;">${u.username}</td><td style="color:#1a2e2a;">${u.localAsignado}</td>
             <td>
-                <button class="edit-password-btn" data-user="${u.username}" style="background:#f4a261;">Cambiar contraseña</button>
-                <button class="delete-user-btn" data-user="${u.username}" style="background:#b0154f;">Eliminar</button>
+                <button class="edit-password-btn" data-user="${u.username}" style="background:#f4a261; border:none; color:white; padding:0.4rem 0.8rem; border-radius:1rem; cursor:pointer; font-weight:bold;">Contraseña</button>
+                <button class="delete-user-btn" data-user="${u.username}" style="background:#b0154f; border:none; color:white; padding:0.4rem 0.8rem; border-radius:1rem; cursor:pointer; font-weight:bold;">Eliminar</button>
             </td>
         </tr>
     `).join("");
@@ -657,8 +650,8 @@ function renderAllLogs() {
         <tr>
             <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.usuario}</td><td>${c.local}</td>
             <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
-            <td>${c.candidatoId ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.listaId ? `Lista ${c.listaId}` : '')}</td>
-            <td>${c.concejalNombre || '-'}</td><td>${c.votos}</td>
+            <td class="candidate-name">${c.candidatoId ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.listaId ? `Lista ${c.listaId}` : '')}</td>
+            <td>${c.concejalNombre || '-'}</td><td style="font-weight:bold;">${c.votos}</td>
         </tr>
     `).join("");
 }
@@ -743,7 +736,6 @@ function loadDigitadorInterface() {
         } else alert("Error al registrar");
     };
 
-    // CORRECCIÓN: Se asignó el evento clic correspondiente al botón de salir del panel digitador
     const logoutDigitadorBtn = document.getElementById('logoutDigitadorBtn');
     if (logoutDigitadorBtn) {
         logoutDigitadorBtn.onclick = logout;
@@ -758,14 +750,15 @@ function renderMisCargas() {
         <tr>
             <td>${new Date(c.timestamp).toLocaleString()}</td>
             <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
-            <td>${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
-            <td>${c.votos}</td>
+            <td class="candidate-name">${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
+            <td style="font-weight:bold;">${c.votos}</td>
         </tr>
     `).join("");
 }
 
 // -------------------- ADMIN PANEL HTML Y LÓGICA --------------------
 function renderAdminPanel() {
+    // CORRECCIÓN: Agregado 'color: #1a2e2a;' explícito en las pestañas "tabUsers" y "tabLogs" para anular el color heredado blanco del contenedor padre .admin-area
     document.getElementById("adminPanel").innerHTML = `
         <div class="admin-area">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
@@ -806,22 +799,22 @@ function renderAdminPanel() {
                 </div>
             </div>
             <div id="tabUsers" class="tab-content">
-                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem;">
-                    <h3>Crear Digitador</h3>
-                    <div class="form-grid">
+                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; color:#1a2e2a;">
+                    <h3 style="color:var(--radio-green); margin-bottom:1rem;">Crear Digitador</h3>
+                    <div class="form-grid" style="margin-bottom:2rem;">
                         <input type="text" id="newFullName" placeholder="Nombre completo">
                         <input type="text" id="newUsername" placeholder="Usuario">
                         <input type="password" id="newPassword" placeholder="Contraseña">
                         <select id="newUserLocal">${locales.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
                         <button id="createUserBtn" class="btn-admin">Crear Usuario</button>
                     </div>
-                    <h3>Usuarios Digitadores</h3>
+                    <h3 style="color:var(--radio-green); margin-bottom:1rem;">Usuarios Digitadores</h3>
                     <table class="vote-table"><thead><tr><th>Nombre</th><th>Usuario</th><th>Local</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
                 </div>
             </div>
             <div id="tabLogs" class="tab-content">
-                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
-                    <h3>Registro de Cargas</h3>
+                <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto; color:#1a2e2a;">
+                    <h3 style="color:var(--radio-green); margin-bottom:1rem;">Registro de Cargas</h3>
                     <table class="vote-table"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato</th><th>Concejal</th><th>Votos</th></tr></thead><tbody id="allLogsBody"></tbody></table>
                 </div>
             </div>
@@ -879,7 +872,6 @@ function setupAdminEvents() {
             const selected = adminCandidato.options[adminCandidato.selectedIndex];
             const concejalId = selected.value;
             const listaId = selected.getAttribute("data-lista");
-            // CORRECCIÓN: Se procesa la cadena usando la raya larga ' — ' para extraer limpiamente solo el nombre
             const concejalNombre = selected.text.split(' — ')[1] || selected.text;
             if (await registrarVoto(local, "concejal", concejalId, votos, currentUser.username, concejalNombre, listaId)) {
                 alert("Voto registrado");
@@ -913,7 +905,6 @@ async function login(username, password) {
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
         const userCred = await signInWithEmailAndPassword(auth, email, password);
-        // CORRECCIÓN: Se solicita el documento en minúsculas unificadas
         const userDoc = await getDoc(doc(db, "users", normalizedUsername));
         if (userDoc.exists()) {
             const userData = userDoc.data();
@@ -1000,7 +991,6 @@ async function startApp() {
     
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // CORRECCIÓN: Optimización de rendimiento y seguridad. Consulta filtrada en vez de descargar toda la colección.
             const q = query(collection(db, "users"), where("uid", "==", user.uid));
             const usersSnapshot = await getDocs(q);
             let userData = null;
