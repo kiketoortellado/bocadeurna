@@ -736,7 +736,63 @@ async function registrarVoto(local, tipo, id, votos, usuario, concejalNombre = n
     }
 }
 
-// -------------------- CÁLCULOS DE TOTALES --------------------
+// -------------------- SUSTRACCIÓN DE VOTOS CON AUDITORÍA --------------------
+async function registrarSustraccion(local, tipo, id, votos, usuario, concejalNombre = null, listaId = null) {
+    votos = parseInt(votos);
+    if (isNaN(votos) || votos <= 0) return false;
+    try {
+        if (tipo === "intendente") {
+            const docRef = doc(db, "intendentes_votes", local);
+            await runTransaction(db, async (transaction) => {
+                const docSnap = await transaction.get(docRef);
+                if (!docSnap.exists()) throw new Error("Documento no existe");
+                const currentData = docSnap.data();
+                const currentVal = currentData[id] || 0;
+                const newVal = Math.max(0, currentVal - votos);
+                transaction.update(docRef, { [id]: newVal });
+            });
+            await setDoc(doc(collection(db, "logs")), {
+                timestamp: new Date().toISOString(),
+                usuario: usuario,
+                local: local,
+                tipo: "intendente",
+                candidatoId: id,
+                listaId: null,
+                concejalNombre: null,
+                votos: votos,
+                accion: "sustraccion"
+            });
+        } else if (tipo === "concejal") {
+            const docRef = doc(db, "concejales_votes", local);
+            await runTransaction(db, async (transaction) => {
+                const docSnap = await transaction.get(docRef);
+                if (!docSnap.exists()) throw new Error("Documento no existe");
+                const currentData = docSnap.data();
+                const currentVal = currentData[id] || 0;
+                const newVal = Math.max(0, currentVal - votos);
+                transaction.update(docRef, { [id]: newVal });
+            });
+            await setDoc(doc(collection(db, "logs")), {
+                timestamp: new Date().toISOString(),
+                usuario: usuario,
+                local: local,
+                tipo: "concejal",
+                candidatoId: null,
+                listaId: listaId,
+                concejalNombre: concejalNombre,
+                votos: votos,
+                accion: "sustraccion"
+            });
+        }
+        return true;
+    } catch (error) {
+        console.error("Error en sustracción:", error);
+        mostrarNotificacion("Error al sustraer voto de la base de datos.", "error");
+        return false;
+    }
+}
+
+
 function totalIntendentes() {
     let total = {};
     intendentes.forEach(i => total[i.id] = 0);
@@ -881,7 +937,7 @@ function renderAdminStats() {
             data: {
                 labels: listaIds.map(l => `Lista ${l}`),
                 datasets: [{
-                    label: 'Votos',
+                    label: '',
                     data: listaIds.map(l => totalListas[l] || 0),
                     backgroundColor: listaIds.map(l => listasConcejales[l].color),
                     borderRadius: 6
@@ -1104,17 +1160,26 @@ async function renderUsersTable() {
 function renderAllLogs() {
     const tbody = document.getElementById("allLogsBody");
     if(!tbody) return;
-    tbody.innerHTML = cargas.slice(0,200).map(c => `
-        <tr>
+    tbody.innerHTML = cargas.slice(0,200).map(c => {
+        const esSustraccion = c.accion === 'sustraccion';
+        const votosDisplay = esSustraccion
+            ? `<span style="color:var(--radio-fuchsia); font-weight:700;">−${Math.abs(c.votos)}</span>`
+            : `<span style="color:var(--radio-green); font-weight:700;">+${c.votos}</span>`;
+        const accionBadge = esSustraccion
+            ? `<span style="background:#fdf2f6; color:var(--radio-fuchsia); padding:2px 8px; border-radius:4px; font-size:0.78rem; font-weight:700;">SUSTRACCIÓN</span>`
+            : `<span style="background:var(--radio-green-light); color:var(--radio-green); padding:2px 8px; border-radius:4px; font-size:0.78rem; font-weight:700;">CARGA</span>`;
+        return `
+        <tr style="${esSustraccion ? 'background:#fff8f9;' : ''}">
             <td style="color:var(--radio-text-muted); font-size:0.85rem;">${new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</td>
             <td style="font-weight:600;">${c.usuario}</td>
             <td style="font-size:0.85rem;">${c.local}</td>
             <td><span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; font-weight:bold; ${c.tipo === "intendente" ? 'background:var(--radio-green-light); color:var(--radio-green);':'background:var(--radio-fuchsia-light); color:var(--radio-fuchsia);'}">${c.tipo === "intendente" ? "Intendente" : "Concejal"}</span></td>
             <td class="candidate-name">${c.candidatoId ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.listaId ? `Lista ${c.listaId}` : '')}</td>
             <td>${c.concejalNombre || '-'}</td>
-            <td style="font-weight:700; color:var(--radio-fuchsia); text-align:right;">+${c.votos}</td>
+            <td style="text-align:right;">${votosDisplay}</td>
+            <td>${accionBadge}</td>
         </tr>
-    `).join("");
+    `}).join("");
 }
 
 // -------------------- PANEL DEL DIGITADOR – WIZARD MÓVIL PASO A PASO --------------------
@@ -1270,7 +1335,7 @@ function loadDigitadorInterface() {
         });
     }
     
-    // --- PASO 3: SELECCIÓN DE CANDIDATO INDIVIDUAL DE LA LISTA ---
+    // --- PASO 3: SELECCIÓN DE CANDIDATO INDIVIDUAL DE LA LISTA (OBLIGATORIO) ---
     function mostrarPaso3() {
         const container = document.getElementById("wizardStepContent");
         if (!container) return;
@@ -1288,12 +1353,9 @@ function loadDigitadorInterface() {
                 <div class="wizard-subtitle">Lista ${transaccionVoto.listaId} · ${listaInfo ? listaInfo.nombre : ''}</div>
                 <h2 class="wizard-title">Seleccione Opción</h2>
                 
-                <div class="wizard-action-buttons">
-                    <button class="btn-back-wizard" id="btnVolverPaso2">
-                        <i class="fas fa-arrow-left"></i> Cambiar Lista
-                    </button>
-                    <button class="btn-omitir-wizard compact" id="btnOmitirCandidato">
-                        <i class="fas fa-forward"></i> Omitir Nombre
+                <div style="margin-bottom: 1rem;">
+                    <button class="btn-back-wizard full-width" id="btnVolverPaso2">
+                        <i class="fas fa-arrow-left"></i> Volver a Listas
                     </button>
                 </div>
                 
@@ -1323,11 +1385,6 @@ function loadDigitadorInterface() {
         
         document.getElementById('btnVolverPaso2').onclick = () => {
             mostrarPaso2();
-        };
-        
-        document.getElementById('btnOmitirCandidato').onclick = () => {
-            transaccionVoto.concejalObj = { id: `lista_${transaccionVoto.listaId}`, nombre: `Voto de Lista`, lista: transaccionVoto.listaId };
-            procesarGuardadoVoto(transaccionVoto);
         };
         
         container.querySelectorAll('.btn-concejal').forEach(btn => {
@@ -1428,9 +1485,9 @@ function renderAdminPanel() {
             </div>
             <div class="admin-tabs">
                 <button class="tab-btn active" data-tab="stats">${SVGIcons.chartPie} Resultados en Vivo</button>
-                <button class="tab-btn" data-tab="carga">${SVGIcons.plusCircle} Carga Rápida Central</button>
+                <button class="tab-btn" data-tab="carga">${SVGIcons.plusCircle} Gestión de Carga</button>
                 <button class="tab-btn" data-tab="users">${SVGIcons.users} Gestión de Digitadores</button>
-                <button class="tab-btn" data-tab="logs">${SVGIcons.listAlt} Historial Total de Cargas</button>
+                <button class="tab-btn" data-tab="logs">${SVGIcons.listAlt} Auditoría de Carga</button>
             </div>
             <div id="tabStats" class="tab-content active">
                 <div class="mini-stats">
@@ -1449,14 +1506,16 @@ function renderAdminPanel() {
             </div>
             <div id="tabCarga" class="tab-content">
                 <div class="admin-quick-vote">
-                    <h3>Carga Rápida de Votos</h3>
+                    <h3>Gestión de Carga de Votos</h3>
                     <div class="quick-vote-grid">
                         <select id="adminLocalSelect">${locales.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
                         <select id="adminTipoSelect"><option value="intendente">Intendente</option><option value="concejal">Concejal</option></select>
                         <select id="adminCandidatoSelect"></select>
                         <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" min="1" pattern="[0-9]*" inputmode="numeric">
-                        <button id="adminRegistrarBtn" class="btn-admin">Registrar Votos Masivos</button>
+                        <button id="adminRegistrarBtn" class="btn-admin" style="background:var(--radio-green);">&#43; Agregar Votos</button>
+                        <button id="adminQuitarBtn" class="btn-admin" style="background:var(--radio-fuchsia);">&#8722; Quitar Votos (con Auditoría)</button>
                     </div>
+                    <p style="font-size:0.8rem; color:var(--radio-text-muted); margin-top:0.5rem;"><i class="fas fa-shield-alt"></i> Toda sustracción de votos queda registrada en la Auditoría de Carga con marca de tiempo y usuario responsable.</p>
                 </div>
             </div>
             <div id="tabUsers" class="tab-content">
@@ -1475,8 +1534,8 @@ function renderAdminPanel() {
             </div>
             <div id="tabLogs" class="tab-content">
                 <div class="results-section">
-                    <h3>Auditoría en Tiempo Real de Cargas Transmitidas</h3>
-                    <table class="vote-table"><thead><tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th></tr></thead><tbody id="allLogsBody"></tbody></table>
+                    <h3>Auditoría de Carga</h3>
+                    <table class="vote-table"><thead><tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th><th>Acción</th></tr></thead><tbody id="allLogsBody"></tbody></table>
                 </div>
             </div>
         </div>
@@ -1540,6 +1599,34 @@ function setupAdminEvents() {
             if (await registrarVoto(local, "concejal", concejalId, votos, currentUser.username, rawText, listaId)) {
                 mostrarNotificacion("Voto preferencial de Concejal asentado.", "success");
             } else mostrarNotificacion("Error al guardar", "error");
+        }
+        inputVotos.value = "";
+    };
+
+    document.getElementById("adminQuitarBtn").onclick = async () => {
+        const local = adminLocal.value;
+        const tipo = adminTipo.value;
+        const inputVotos = document.getElementById("adminVotosInput");
+        const votos = parseInt(inputVotos.value);
+        if (isNaN(votos) || votos <= 0) { mostrarNotificacion("Indique la cantidad de votos a quitar.", "error"); return; }
+        
+        const candidatoNombre = adminCandidato.options[adminCandidato.selectedIndex]?.text || '';
+        const confirmMsg = `¿Confirma QUITAR ${votos} voto(s) de:\n"${candidatoNombre}"\nLocal: ${local}\n\nEsta acción quedará registrada en la Auditoría de Carga.`;
+        if (!confirm(confirmMsg)) return;
+
+        if (tipo === "intendente") {
+            const id = adminCandidato.value;
+            if (await registrarSustraccion(local, "intendente", id, votos, currentUser.username)) {
+                mostrarNotificacion(`Se quitaron ${votos} voto(s). Registrado en auditoría.`, "warning");
+            } else mostrarNotificacion("Error al quitar votos", "error");
+        } else {
+            const selected = adminCandidato.options[adminCandidato.selectedIndex];
+            const concejalId = selected.value;
+            const listaId = selected.getAttribute("data-lista");
+            const rawText = selected.text.split(' — ')[1] || selected.text;
+            if (await registrarSustraccion(local, "concejal", concejalId, votos, currentUser.username, rawText, listaId)) {
+                mostrarNotificacion(`Se quitaron ${votos} voto(s). Registrado en auditoría.`, "warning");
+            } else mostrarNotificacion("Error al quitar votos", "error");
         }
         inputVotos.value = "";
     };
