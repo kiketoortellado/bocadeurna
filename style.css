@@ -127,7 +127,7 @@ body {
     box-shadow: var(--shadow-md);
     border-top: 4px solid var(--radio-fuchsia);
     text-align: center;
-    color: #1a2e2a; /* CORRECCIÓN: Forzar texto oscuro en tarjetas de estadísticas */
+    color: #1a2e2a;
 }
 .stat-card i { font-size: 1.8rem; color: var(--radio-green); margin-bottom: 0.5rem; }
 .stat-card h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--radio-green); }
@@ -141,7 +141,7 @@ body {
     margin-bottom: 2rem;
     box-shadow: var(--shadow-md);
     border-left: 6px solid var(--radio-fuchsia);
-    color: #1a2e2a; /* CORRECCIÓN: Forzar texto oscuro en panel de carga rápida */
+    color: #1a2e2a;
 }
 .quick-vote-grid {
     display: grid;
@@ -177,7 +177,7 @@ body {
     padding: 1rem;
     box-shadow: var(--shadow-md);
     border-top: 5px solid var(--radio-fuchsia);
-    color: #1a2e2a; /* CORRECCIÓN: Texto oscuro para títulos internos de gráficos */
+    color: #1a2e2a;
 }
 .results-section {
     background: white;
@@ -186,7 +186,7 @@ body {
     margin-bottom: 2rem;
     box-shadow: var(--shadow-md);
     overflow-x: auto;
-    color: #1a2e2a; /* CORRECCIÓN: Forzar texto oscuro en secciones de tablas */
+    color: #1a2e2a;
 }
 .results-section h3 {
     color: var(--radio-green);
@@ -196,13 +196,13 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    color: #1a2e2a; /* CORRECCIÓN: Forzar texto oscuro general en filas de tablas */
+    color: #1a2e2a;
 }
 .vote-table th, .vote-table td {
     padding: 0.8rem 0.5rem;
     border-bottom: 1px solid #e0dad5;
     text-align: center;
-    color: #1a2e2a; /* CORRECCIÓN: Asegurar visibilidad en celdas individuales */
+    color: #1a2e2a;
 }
 .vote-table th {
     background: #eef5f2;
@@ -215,7 +215,7 @@ body {
     background: #1e3a33;
     border-radius: var(--border-radius);
     padding: 1.5rem;
-    color: white; /* Mantiene blancos los títulos del contenedor principal externo */
+    color: white;
 }
 .btn-admin {
     background: var(--radio-fuchsia);
@@ -373,4 +373,239 @@ body {
     .brand h1 { font-size: 1.2rem; }
     .radio-header { flex-direction: column; align-items: flex-start; }
     .election-badge { align-self: flex-start; }
+}
+
+/* ==========================================================================
+   AGREGADO: ESTILOS PARA COMPORTAMIENTO MÓVIL SÚPER DIGITADOR (WIZARD PASOS)
+   ========================================================================== */
+
+.mobile-wizard-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 75vh;
+    background: #ffffff;
+    border-radius: var(--border-radius, 1.5rem);
+    padding: 1.2rem;
+    box-shadow: var(--shadow-md, 0 10px 25px rgba(0,0,0,0.1));
+    position: relative;
+    border-top: 6px solid var(--radio-fuchsia, #D81B60);
+}
+
+.mobile-wizard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f0f6f4;
+    padding-bottom: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-local-badge {
+    background: #eef5f2;
+    color: var(--radio-green, #006D5B);
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.mobile-logout-btn {
+    background: #fff0f5;
+    color: var(--radio-fuchsia, #D81B60);
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.wizard-step {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.wizard-progress {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-bottom: 1.2rem;
+}
+
+.step-dot {
+    width: 14px;
+    height: 14px;
+    background: #e0dad5;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.step-dot.active {
+    background: var(--radio-fuchsia, #D81B60);
+}
+
+.wizard-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--radio-green, #006D5B);
+    text-align: center;
+    margin-bottom: 1.2rem;
+}
+
+.wizard-subtitle {
+    font-size: 0.85rem;
+    color: #556b65;
+    text-align: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.big-buttons-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+    flex-grow: 1;
+}
+
+.alternative-scrolling {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.3rem;
+}
+
+.btn-big-option {
+    background: #f7faf8;
+    border: 2px solid #e2ece8;
+    border-radius: 1.2rem;
+    padding: 1.1rem 1.2rem;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.1s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-big-option:active {
+    background-color: #d1e4dd !important;
+    border-color: var(--radio-green, #006D5B);
+}
+
+.candidate-party {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--radio-fuchsia, #D81B60);
+    text-transform: uppercase;
+    margin-bottom: 0.2rem;
+}
+
+.candidate-main-name {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1a2e2a;
+}
+
+.candidate-main-name-small {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a2e2a;
+}
+
+.candidate-sub {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 0.1rem;
+}
+
+.btn-omitir-wizard {
+    background: #fff3f7;
+    border: 2px dashed var(--radio-fuchsia, #D81B60);
+    color: var(--radio-fuchsia, #D81B60);
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 1rem;
+    border-radius: 1.2rem;
+    margin-bottom: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.btn-omitir-wizard:active {
+    background: #ffe0eb;
+}
+
+.wizard-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+}
+
+.btn-back-wizard {
+    background: #f0f4f2;
+    border: 1px solid #ccc;
+    color: #4a6b62;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.8rem;
+    border-radius: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.btn-back-wizard.full-width {
+    width: 100%;
+}
+
+.btn-omitir-wizard.compact {
+    margin-bottom: 0;
+    padding: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.wizard-success-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: var(--border-radius, 1.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.success-card {
+    text-align: center;
+    animation: quickPop 0.2s ease-out;
+}
+
+.success-icon {
+    font-size: 4.5rem;
+    color: #006D5B;
+    margin-bottom: 1rem;
+}
+
+@keyframes quickPop {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
