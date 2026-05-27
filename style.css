@@ -56,25 +56,22 @@ body {
     white-space: nowrap;
 }
 
-/* Logo más grande en header */
 .logo-radio {
     height: 60px;
     width: auto;
     vertical-align: middle;
 }
 
-/* Logo aún más grande en el login (se aplica en modal) */
 .login-logo {
     height: 80px;
     margin-bottom: 15px;
 }
 
-/* Botón flotante siempre visible y por encima de todo */
 .floating-login {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 2100;  /* Mayor que el overlay (2000) */
+    z-index: 2100;
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     background: var(--radio-fuchsia);
     font-size: 1.1rem;
@@ -85,6 +82,8 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    color: white;
+    border-radius: 2rem;
 }
 .floating-login:hover {
     transform: scale(1.02);
@@ -240,6 +239,7 @@ body {
     text-align: center;
     box-shadow: 0 25px 40px rgba(0,0,0,0.3);
     border-top: 8px solid var(--radio-fuchsia);
+    color: #1a2e2a;
 }
 .login-card input {
     width: 100%;
@@ -270,6 +270,7 @@ body {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     box-shadow: var(--shadow-md);
+    color: #1a2e2a;
 }
 .digitador-header {
     display: flex;
