@@ -40,7 +40,6 @@ body {
 .brand h1 i { color: var(--radio-fuchsia); margin-right: 0.5rem; }
 .election-badge { background: var(--radio-fuchsia); padding: 0.5rem 1.2rem; border-radius: 3rem; font-weight: 700; }
 
-/* Tabs admin */
 .admin-tabs {
     display: flex;
     gap: 0.8rem;
@@ -64,7 +63,35 @@ body {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* Tarjetas y tablas */
+/* Módulo de carga rápida admin */
+.admin-quick-vote {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border-left: 6px solid var(--radio-fuchsia);
+}
+.quick-vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+}
+.quick-vote-grid select, .quick-vote-grid input {
+    padding: 0.7rem;
+    border-radius: 2rem;
+    border: 1px solid #ccc;
+}
+.quick-vote-grid button {
+    background: var(--radio-green);
+    color: white;
+    border: none;
+    border-radius: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
 .charts-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -103,7 +130,6 @@ body {
 }
 .candidate-name { font-weight: 700; text-align: left !important; }
 
-/* Admin area */
 .admin-area {
     background: #1e3a33;
     border-radius: var(--border-radius);
@@ -133,7 +159,7 @@ body {
     padding: 0.8rem 1.5rem;
 }
 
-/* MODAL LOGIN GRANDE y colorido */
+/* Login grande */
 .login-modal {
     position: fixed;
     top: 0;
@@ -245,4 +271,5 @@ body {
     .container { padding: 0.8rem; }
     .charts-panel { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
+    .quick-vote-grid { grid-template-columns: 1fr; }
 }
