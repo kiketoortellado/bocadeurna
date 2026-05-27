@@ -6,27 +6,12 @@
     <title>Boca de Urna Santaní | Radio Ñasaindy 620AM</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <style>
-        /* Estilos mínimos para que funcione */
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(145deg, #f0f7f4 0%, #e6f0ec 100%); color: #1a2e2a; padding-bottom: 2rem; }
-        :root { --radio-green: #006D5B; --radio-fuchsia: #D81B60; --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.1); --border-radius: 1.5rem; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 1rem 1.5rem; }
-        .radio-header { background: var(--radio-green); border-radius: 2rem; padding: 1rem 2rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; color: white; box-shadow: var(--shadow-md); gap: 1rem; }
-        .brand h1 { font-size: 1.8rem; display: flex; align-items: center; gap: 0.8rem; }
-        .brand p { font-size: 0.9rem; opacity: 0.9; margin-top: 0.2rem; }
-        .election-badge { background: var(--radio-fuchsia); padding: 0.5rem 1.2rem; border-radius: 3rem; font-weight: 700; white-space: nowrap; }
-        .logo-radio { height: 60px; width: auto; vertical-align: middle; }
-        .floating-login { position: fixed; bottom: 20px; right: 20px; z-index: 2100; background: var(--radio-fuchsia); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 0.5rem; }
-        .login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,45,38,0.95); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .login-card { background: white; max-width: 450px; width: 90%; padding: 2rem; border-radius: 2rem; text-align: center; border-top: 8px solid var(--radio-fuchsia); }
-        .login-card input { width: 100%; padding: 1rem; margin: 1rem 0; border-radius: 3rem; border: 2px solid #ddd; }
-        .login-card button { background: var(--radio-fuchsia); color: white; border: none; padding: 0.8rem; width: 100%; border-radius: 3rem; font-size: 1.2rem; margin-top: 0.5rem; cursor: pointer; }
-        .login-card button:last-child { background: #6c8b82; }
+        /* Estilos base necesarios antes de que cargue style.css */
         .admin-panel, .digitador-panel { display: none; }
-        .footer-note { text-align: center; font-size: 0.75rem; margin-top: 2rem; color: #4f6b62; }
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
     </style>
 </head>
