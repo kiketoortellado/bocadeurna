@@ -21,6 +21,12 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // CORRECCIÓN: Si es el archivo CSV de datos, ir directamente a la red para evitar congelamiento de datos
+  if (event.request.url.includes('.csv')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))
