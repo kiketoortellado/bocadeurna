@@ -9,8 +9,17 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+            }
+        }
+    </script>
     <style>
-        /* Estilos base necesarios antes de que cargue style.css */
         .admin-panel, .digitador-panel { display: none; }
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
     </style>
@@ -32,13 +41,13 @@
 <button id="floatingLoginBtn" class="floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
 <div id="loadingOverlay"><div style="background:white; padding:2rem; border-radius:1rem;">Cargando datos...</div></div>
 
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 <script>
-    // Forzar ocultamiento del overlay después de 3 segundos si no se ocultó
+    // Fallback para ocultar overlay si algo falla
     setTimeout(function() {
         var overlay = document.getElementById('loadingOverlay');
         if (overlay) overlay.style.display = 'none';
-    }, 3000);
+    }, 5000);
 </script>
 </body>
 </html>
