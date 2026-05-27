@@ -382,7 +382,7 @@ function renderTablaListasPorLocal() {
     const thead = document.getElementById("listasHeader");
     const tbody = document.getElementById("listasBody");
     if(!thead) return;
-    let header = "</tr><th>Local</th>";
+    let header = "<tr><th>Local</th>";
     Object.keys(listasConcejales).forEach(lid=>{ header+=`<th>Lista ${lid}<br><small>${listasConcejales[lid].nombre}</small></th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -544,13 +544,13 @@ function renderMisCargas() {
     `).join("");
 }
 
-// -------------------- LOGIN --------------------
+// -------------------- LOGIN (MODIFICADO CON LOGO) --------------------
 function showLoginModal() {
     const modal = document.createElement('div');
     modal.className = 'login-modal';
     modal.innerHTML = `
         <div class="login-card">
-            <i class="fas fa-microphone-alt"></i>
+            <img src="assets/logo_nasa.png" alt="Logo Radio Ñasaindy" class="logo-radio login-logo">
             <h3>Radio Ñasaindy 620AM</h3>
             <p>Sistema de Carga de Votos - San Estanislao</p>
             <input type="text" id="loginUser" placeholder="Usuario">
