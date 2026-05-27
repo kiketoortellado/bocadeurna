@@ -2,148 +2,58 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Boca de Urna Santaní | Radio Ñasaindy 620AM</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos mínimos para que funcione */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(145deg, #f0f7f4 0%, #e6f0ec 100%); color: #1a2e2a; padding-bottom: 2rem; }
+        :root { --radio-green: #006D5B; --radio-fuchsia: #D81B60; --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.1); --border-radius: 1.5rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1rem 1.5rem; }
+        .radio-header { background: var(--radio-green); border-radius: 2rem; padding: 1rem 2rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; color: white; box-shadow: var(--shadow-md); gap: 1rem; }
+        .brand h1 { font-size: 1.8rem; display: flex; align-items: center; gap: 0.8rem; }
+        .brand p { font-size: 0.9rem; opacity: 0.9; margin-top: 0.2rem; }
+        .election-badge { background: var(--radio-fuchsia); padding: 0.5rem 1.2rem; border-radius: 3rem; font-weight: 700; white-space: nowrap; }
+        .logo-radio { height: 60px; width: auto; vertical-align: middle; }
+        .floating-login { position: fixed; bottom: 20px; right: 20px; z-index: 2100; background: var(--radio-fuchsia); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 0.5rem; }
+        .login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,45,38,0.95); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .login-card { background: white; max-width: 450px; width: 90%; padding: 2rem; border-radius: 2rem; text-align: center; border-top: 8px solid var(--radio-fuchsia); }
+        .login-card input { width: 100%; padding: 1rem; margin: 1rem 0; border-radius: 3rem; border: 2px solid #ddd; }
+        .login-card button { background: var(--radio-fuchsia); color: white; border: none; padding: 0.8rem; width: 100%; border-radius: 3rem; font-size: 1.2rem; margin-top: 0.5rem; cursor: pointer; }
+        .login-card button:last-child { background: #6c8b82; }
+        .admin-panel, .digitador-panel { display: none; }
+        .footer-note { text-align: center; font-size: 0.75rem; margin-top: 2rem; color: #4f6b62; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+    </style>
 </head>
 <body>
-<div class="container" id="app">
+<div class="container">
     <div class="radio-header">
         <div class="brand">
-            <h1>
-                <img src="assets/logo_nasa.png" alt="Logo Radio Ñasaindy" class="logo-radio">
-                Radio Ñasaindy 620 AM
-            </h1>
+            <h1><img src="assets/logo_nasa.png" alt="Logo" class="logo-radio" onerror="this.src='https://via.placeholder.com/60?text=Logo'"> Radio Ñasaindy 620 AM</h1>
             <p>Elecciones Municipales 2026 · San Estanislao</p>
         </div>
-        <div class="election-badge">
-            <i class="fas fa-vote-yea"></i> BOCA DE URNA OFICIAL
-        </div>
+        <div class="election-badge"><i class="fas fa-vote-yea"></i> BOCA DE URNA OFICIAL</div>
     </div>
-
-    <!-- Panel ADMIN -->
-    <div id="adminPanel" style="display: none;">
-        <div class="admin-tabs">
-            <button class="tab-btn active" data-tab="stats"><i class="fas fa-chart-line"></i> Estadísticas</button>
-            <button class="tab-btn" data-tab="users"><i class="fas fa-users"></i> Gestión de Usuarios</button>
-            <button class="tab-btn" data-tab="logs"><i class="fas fa-history"></i> Registro de Cargas</button>
-        </div>
-
-        <div id="tabStats" class="tab-content active">
-            <div class="hero">
-                <h2><i class="fas fa-chart-line"></i> Resultados provisorios – San Estanislao</h2>
-            </div>
-
-            <div class="mini-stats">
-                <div class="stat-card"><i class="fas fa-user-tie"></i><h3>Intendentes</h3><div id="resumenIntendentes"></div></div>
-                <div class="stat-card"><i class="fas fa-users"></i><h3>Concejales</h3><div id="resumenConcejales"></div></div>
-            </div>
-
-            <div class="admin-quick-vote">
-                <h3><i class="fas fa-bolt"></i> Registro rápido de votos (Admin)</h3>
-                <div class="quick-vote-grid">
-                    <select id="adminLocalSelect"></select>
-                    <select id="adminTipoSelect">
-                        <option value="intendente">Intendente</option>
-                        <option value="concejal">Concejal (individual)</option>
-                    </select>
-                    <select id="adminCandidatoSelect"></select>
-                    <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" value="0" min="1">
-                    <button id="adminRegistrarBtn"><i class="fas fa-save"></i> Registrar voto</button>
-                </div>
-            </div>
-
-            <div class="charts-panel">
-                <div class="chart-card"><h3><i class="fas fa-user-tie"></i> Votos Intendentes (porcentaje)</h3><canvas id="intendentesChart"></canvas></div>
-                <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Votos por Lista de Concejales (porcentaje)</h3><canvas id="listasChart"></canvas></div>
-            </div>
-
-            <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table></div></div>
-            <div class="results-section"><h3><i class="fas fa-list-check"></i> Votos por Lista de Concejales (por local) - sumatoria individual</h3><div style="overflow-x:auto;"><table class="vote-table" id="listasPorLocalTable"><thead id="listasHeader"></thead><tbody id="listasBody"></tbody></table></div></div>
-            
-            <div class="results-section" style="background: #faf0e6;">
-                <h3><i class="fas fa-calculator"></i> Método D'Hondt – Distribución de 12 bancas entre listas</h3>
-                <div id="dhondtResultado"></div>
-            </div>
-
-            <div class="results-section">
-                <h3><i class="fas fa-trophy"></i> Concejales electos (ordenados por votos individuales)</h3>
-                <div style="overflow-x:auto;">
-                    <table class="vote-table" id="electosTable">
-                        <thead><tr><th>N°</th><th>Lista</th><th>Candidato</th><th>Votos individuales</th></tr></thead>
-                        <tbody id="electosBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="results-section"><h3><i class="fas fa-user-friends"></i> Detalle de candidatos por lista (orden original, con votos individuales)</h3><div id="concejalesDetalle"></div></div>
-        </div>
-
-        <div id="tabUsers" class="tab-content">
-            <div class="admin-area">
-                <h3><i class="fas fa-user-plus"></i> Crear nuevo usuario digitador</h3>
-                <div class="form-grid">
-                    <input type="text" id="newFullName" placeholder="Nombre y Apellido">
-                    <input type="text" id="newUsername" placeholder="Usuario (único)">
-                    <input type="password" id="newPassword" placeholder="Contraseña">
-                    <select id="newUserLocal"></select>
-                    <button id="createUserBtn" style="grid-column: span 2;">Crear Usuario</button>
-                </div>
-                <h3 style="margin-top:1.5rem;">Usuarios digitadores existentes</h3>
-                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody>能得到</table>
-                <button id="logoutAdminBtn" class="btn-admin logout-btn" style="margin-top:1rem;"><i class="fas fa-sign-out-alt"></i> Cerrar sesión Admin</button>
-            </div>
-        </div>
-
-        <div id="tabLogs" class="tab-content">
-            <div class="admin-area">
-                <h3><i class="fas fa-list-alt"></i> Todas las cargas realizadas</h3>
-                <div style="overflow-x:auto;"><table class="vote-table" id="allLogsTable"><thead><tr><th>Fecha</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato/Lista</th><th>Concejal</th><th>Votos</th></tr></thead><tbody id="allLogsBody"></tbody>能得到</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel DIGITADOR -->
-    <div id="digitadorPanel" style="display: none;">
-        <div class="digitador-container">
-            <div class="digitador-header">
-                <h3><i class="fas fa-mobile-alt"></i> Carga de votos – Local: <span id="miLocalSpan"></span></h3>
-                <button id="logoutDigitadorBtn" class="btn-admin logout-btn"><i class="fas fa-sign-out-alt"></i> Salir</button>
-            </div>
-            <div class="carga-card">
-                <h4><i class="fas fa-user-check"></i> Voto para Intendente (obligatorio)</h4>
-                <select id="digIntendenteSelect"></select>
-                <input type="number" id="digVotosIntendente" placeholder="Cantidad de votos" value="0" min="1">
-                <button id="cargarIntendenteBtn"><i class="fas fa-vote-yea"></i> Registrar voto intendente</button>
-            </div>
-            <div class="carga-card">
-                <h4><i class="fas fa-users"></i> Voto para Concejal (individual - lista desbloqueada)</h4>
-                <div style="display:grid; gap:0.5rem;">
-                    <select id="digListaSelect"><option value="">Seleccione una lista</option></select>
-                    <select id="digConcejalSelect" disabled><option value="">Primero elija lista</option></select>
-                    <input type="number" id="digVotosConcejal" placeholder="Cantidad de votos" value="0" min="1">
-                    <button id="cargarConcejalBtn"><i class="fas fa-plus-circle"></i> Agregar voto a concejal</button>
-                </div>
-            </div>
-            <div class="carga-card">
-                <h4><i class="fas fa-history"></i> Mis últimas cargas</h4>
-                <div style="overflow-x:auto;"><table class="vote-table" id="misCargasTable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody>能得到</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="footer-note"><i class="fas fa-chart-line"></i> Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales San Estanislao 2026 – Lista desbloqueada con D'Hondt</div>
+    <div id="adminPanel" class="admin-panel"></div>
+    <div id="digitadorPanel" class="digitador-panel"></div>
+    <div class="footer-note">Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales San Estanislao 2026</div>
 </div>
 
-<!-- Botón flotante "Acceder" siempre visible -->
-<button id="floatingLoginBtn" class="btn-admin floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
-
-<div id="loadingOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:2000;"><div style="background:white; padding:2rem; border-radius:1rem;">Cargando datos electorales...</div></div>
+<button id="floatingLoginBtn" class="floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
+<div id="loadingOverlay"><div style="background:white; padding:2rem; border-radius:1rem;">Cargando datos...</div></div>
 
 <script src="app.js"></script>
+<script>
+    // Forzar ocultamiento del overlay después de 3 segundos si no se ocultó
+    setTimeout(function() {
+        var overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }, 3000);
+</script>
 </body>
 </html>
