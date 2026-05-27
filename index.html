@@ -21,7 +21,7 @@
         </div>
     </div>
 
-    <!-- Panel ADMIN (estadísticas + gestión) -->
+    <!-- Panel ADMIN (estadísticas + gestión + carga rápida) -->
     <div id="adminPanel" style="display: none;">
         <div class="admin-tabs">
             <button class="tab-btn active" data-tab="stats"><i class="fas fa-chart-line"></i> Estadísticas</button>
@@ -29,12 +29,32 @@
             <button class="tab-btn" data-tab="logs"><i class="fas fa-history"></i> Registro de Cargas</button>
         </div>
 
-        <!-- Pestaña Estadísticas (con D'Hondt) -->
+        <!-- Pestaña Estadísticas (con D'Hondt y carga rápida para admin) -->
         <div id="tabStats" class="tab-content active">
             <div class="hero">
                 <h2><i class="fas fa-chart-line"></i> Resultados provisorios – Santaní</h2>
                 <p>Actualización en tiempo real desde los locales de votación</p>
             </div>
+
+            <!-- MÓDULO DE CARGA RÁPIDA PARA ADMIN -->
+            <div class="admin-quick-vote">
+                <h3><i class="fas fa-bolt"></i> Registro rápido de votos (Admin)</h3>
+                <div class="quick-vote-grid">
+                    <select id="adminLocalSelect">
+                        <option value="Gimnasio Municipal">Gimnasio Municipal</option>
+                        <option value="Colegio Nacional Sebastián de Yegros">Colegio Nacional Sebastián de Yegros</option>
+                        <option value="Esc. Carlos Antonio López">Esc. Carlos Antonio López</option>
+                    </select>
+                    <select id="adminTipoSelect">
+                        <option value="intendente">Intendente</option>
+                        <option value="concejal">Concejal (individual)</option>
+                    </select>
+                    <select id="adminCandidatoSelect"></select>
+                    <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" value="0" min="1">
+                    <button id="adminRegistrarBtn"><i class="fas fa-save"></i> Registrar voto</button>
+                </div>
+            </div>
+
             <div class="charts-panel">
                 <div class="chart-card"><h3><i class="fas fa-user-tie"></i> Votos Intendentes</h3><canvas id="intendentesChart"></canvas></div>
                 <div class="chart-card"><h3><i class="fas fa-users"></i> Votos por Lista de Concejales</h3><canvas id="listasChart"></canvas></div>
@@ -42,7 +62,7 @@
             <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table></div></div>
             <div class="results-section"><h3><i class="fas fa-list-check"></i> Votos por Lista de Concejales (por local)</h3><div style="overflow-x:auto;"><table class="vote-table" id="listasPorLocalTable"><thead id="listasHeader"></thead><tbody id="listasBody"></tbody></table></div></div>
             
-            <!-- Sistema D'Hondt para Concejales -->
+            <!-- Sistema D'Hondt -->
             <div class="results-section" style="background: #faf0e6;">
                 <h3><i class="fas fa-calculator"></i> Sistema D'Hondt – Distribución de 12 Bancas a Concejales</h3>
                 <div id="dhondtResultado"></div>
@@ -51,22 +71,26 @@
             <div class="results-section"><h3><i class="fas fa-user-friends"></i> Candidatos a Concejal por Lista (ordenados) - Totales acumulados</h3><div id="concejalesDetalle"></div></div>
         </div>
 
-        <!-- Pestaña Gestión de Usuarios -->
+        <!-- Pestaña Gestión de Usuarios (con nombre completo y edición de contraseña) -->
         <div id="tabUsers" class="tab-content">
             <div class="admin-area">
                 <h3><i class="fas fa-user-plus"></i> Crear nuevo usuario digitador</h3>
                 <div class="form-grid">
-                    <input type="text" id="newUsername" placeholder="Usuario (ej: juan)">
+                    <input type="text" id="newFullName" placeholder="Nombre y Apellido">
+                    <input type="text" id="newUsername" placeholder="Usuario (único)">
                     <input type="password" id="newPassword" placeholder="Contraseña">
                     <select id="newUserLocal">
                         <option value="Gimnasio Municipal">Gimnasio Municipal</option>
                         <option value="Colegio Nacional Sebastián de Yegros">Colegio Nacional Sebastián de Yegros</option>
                         <option value="Esc. Carlos Antonio López">Esc. Carlos Antonio López</option>
                     </select>
-                    <button id="createUserBtn">Crear Usuario</button>
+                    <button id="createUserBtn" style="grid-column: span 2;">Crear Usuario</button>
                 </div>
-                <h3 style="margin-top:1.5rem;">Usuarios existentes</h3>
-                <table class="vote-table" id="usersTable"><thead><tr><th>Usuario</th><th>Local asignado</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
+                <h3 style="margin-top:1.5rem;">Usuarios digitadores existentes</h3>
+                <table class="vote-table" id="usersTable">
+                    <thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
                 <button id="logoutAdminBtn" class="btn-admin logout-btn" style="margin-top:1rem;"><i class="fas fa-sign-out-alt"></i> Cerrar sesión Admin</button>
             </div>
         </div>
@@ -87,7 +111,6 @@
                 <h3><i class="fas fa-mobile-alt"></i> Carga de votos – Local: <span id="miLocalSpan"></span></h3>
                 <button id="logoutDigitadorBtn" class="btn-admin logout-btn"><i class="fas fa-sign-out-alt"></i> Salir</button>
             </div>
-            
             <div class="carga-card">
                 <h4><i class="fas fa-user-check"></i> Voto para Intendente (obligatorio)</h4>
                 <select id="digIntendenteSelect">
@@ -97,7 +120,6 @@
                 <input type="number" id="digVotosIntendente" placeholder="Cantidad de votos" value="0" min="1">
                 <button id="cargarIntendenteBtn"><i class="fas fa-vote-yea"></i> Registrar voto intendente</button>
             </div>
-
             <div class="carga-card">
                 <h4><i class="fas fa-users"></i> Voto para Concejal (opcional)</h4>
                 <div style="display:grid; gap:0.5rem;">
@@ -107,7 +129,6 @@
                     <button id="cargarConcejalBtn"><i class="fas fa-plus-circle"></i> Agregar voto concejal</button>
                 </div>
             </div>
-
             <div class="carga-card">
                 <h4><i class="fas fa-history"></i> Mis últimas cargas</h4>
                 <div style="overflow-x:auto;"><table class="vote-table" id="misCargasTable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody></table></div>
@@ -118,7 +139,6 @@
     <div class="footer-note"><i class="fas fa-chart-line"></i> Sistema Boca de Urna – Radio Ñasaindy 620AM – Elecciones Municipales Santaní 2026</div>
 </div>
 
-<!-- Botón flotante de login (solo si no hay sesión) -->
 <button id="floatingLoginBtn" class="btn-admin floating-login"><i class="fas fa-user-lock"></i> Acceder</button>
 
 <script src="app.js"></script>
