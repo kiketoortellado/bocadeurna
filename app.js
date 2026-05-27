@@ -1780,7 +1780,10 @@ function logout() {
     
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("digitadorPanel").style.display = "none";
-    document.getElementById("floatingLoginBtn").style.display = "block";
+    // Mostrar login automáticamente tras cerrar sesión
+    setTimeout(() => {
+        if (!document.querySelector('.login-modal')) showLoginModal();
+    }, 400);
 }
 
 function showLoginModal() {
@@ -1788,11 +1791,14 @@ function showLoginModal() {
     modal.className = 'login-modal';
     modal.innerHTML = `
         <div class="login-card" style="animation: appFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;">
-            <img src="assets/logo_nasa.png" alt="Logo Radio NASA" class="logo-radio login-logo" onerror="this.style.display='none'">
-            <h3>Radio Ñasaindy 620AM</h3>
-            <p>Boca de Urna Electrónica – San Estanislao</p>
-            <input type="text" id="loginUser" placeholder="Usuario Operador">
-            <input type="password" id="loginPass" placeholder="Contraseña de Seguridad">
+            <img src="assets/logo_nasa.png" alt="Logo Radio Ñasaindy"
+                 style="display:block;max-height:110px;width:auto;object-fit:contain;margin:0 auto 16px;"
+                 onerror="this.style.display='none'">
+            <h3 style="font-size:1.5rem;font-weight:800;">Radio Ñasaindy 620AM</h3>
+            <p style="font-weight:600;color:#d81b60;font-size:0.9rem;margin:0 0 4px 0;">Boca de Urna Electrónica – San Estanislao</p>
+            <p style="color:#64748b;font-size:0.8rem;margin:0 0 16px 0;">Elecciones Municipales 2026</p>
+            <input type="text" id="loginUser" placeholder="Usuario Operador" autocomplete="username">
+            <input type="password" id="loginPass" placeholder="Contraseña de Seguridad" autocomplete="current-password">
             <button id="loginBtn">Ingresar al Sistema</button>
             <button id="closeModalBtn" style="margin-top:4px;">Cancelar</button>
         </div>
@@ -1809,7 +1815,11 @@ function showLoginModal() {
         }
     };
     document.getElementById('loginBtn').addEventListener('click', doLogin);
-    document.getElementById('closeModalBtn').addEventListener('click', () => modal.remove());
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+        // Solo permitir cerrar si hay una sesión activa (modo "cambio de cuenta")
+        if (currentUser) modal.remove();
+        // Si no hay sesión, no hacer nada — el usuario debe autenticarse
+    });
     document.getElementById('loginPass').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
 }
 
@@ -1825,11 +1835,9 @@ async function startApp() {
     escucharVotos();
     
     const floatingBtn = document.getElementById('floatingLoginBtn');
-    if (floatingBtn) {
-        floatingBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Acceso Sistema`;
-        floatingBtn.addEventListener('click', showLoginModal);
-    }
-    
+    if (floatingBtn) floatingBtn.style.display = 'none'; // siempre oculto
+
+    // Escuchar estado de autenticación
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             const inicioSesion = localStorage.getItem('inicio_sesion_timestamp');
@@ -1888,6 +1896,10 @@ async function startApp() {
             }
         } else {
             if (currentUser) logout();
+            // Mostrar login automáticamente si no hay sesión activa
+            if (!document.querySelector('.login-modal')) {
+                showLoginModal();
+            }
         }
     });
 }
