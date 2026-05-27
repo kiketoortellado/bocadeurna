@@ -12,39 +12,56 @@ let currentUser = null;
 
 let chartInt, chartList;
 
-// Parsear CSV
+// Parsear CSV (maneja BOM, comillas, líneas vacías)
 function parseCSV(csvText) {
+    // Eliminar BOM si existe
+    if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
+    
     const lines = csvText.split(/\r?\n/);
-    const headers = lines[0].split(',');
+    if (lines.length === 0) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
     const result = [];
+    
     for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
+        const line = lines[i].trim();
+        if (line === "") continue;
+        
         let inQuote = false;
         let current = '';
         const row = [];
-        for (let ch of lines[i]) {
-            if (ch === '"') inQuote = !inQuote;
-            else if (ch === ',' && !inQuote) {
+        for (let ch of line) {
+            if (ch === '"') {
+                inQuote = !inQuote;
+            } else if (ch === ',' && !inQuote) {
                 row.push(current.trim());
                 current = '';
-            } else current += ch;
+            } else {
+                current += ch;
+            }
         }
         row.push(current.trim());
+        
         if (row.length === headers.length) {
             let obj = {};
             headers.forEach((h, idx) => { obj[h] = row[idx]; });
             result.push(obj);
+        } else {
+            console.warn(`Fila ${i+1} tiene ${row.length} columnas, se esperaban ${headers.length}`);
         }
     }
     return result;
 }
 
 async function cargarDatosDesdeCSV() {
+    const overlay = document.getElementById('loadingOverlay');
     try {
-        const response = await fetch('data/elecciones_san_estanislao.csv');
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const response = await fetch('data/elecciones_san_estanislao.csv', { cache: "no-cache" });
+        if (!response.ok) throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+        
         const csvText = await response.text();
         const data = parseCSV(csvText);
+        
+        if (data.length === 0) throw new Error("El archivo CSV está vacío o no se pudo parsear.");
         
         intendentes = [];
         concejalesIndividuales = [];
@@ -79,19 +96,30 @@ async function cargarDatosDesdeCSV() {
                 listasConcejales[lista].candidatos[opcion-1] = { opcion, nombre: row.Nombre };
             }
         }
+        
+        // Limpiar posibles huecos en candidatos y ordenar
         for (let lista in listasConcejales) {
             listasConcejales[lista].candidatos = listasConcejales[lista].candidatos.filter(c => c);
             listasConcejales[lista].candidatos.sort((a,b) => a.opcion - b.opcion);
         }
         
-        if (intendentes.length === 0 || concejalesIndividuales.length === 0) {
-            throw new Error("No se encontraron datos válidos en el CSV");
-        }
+        if (intendentes.length === 0) throw new Error("No se encontraron candidatos a Intendente en el CSV.");
+        if (concejalesIndividuales.length === 0) throw new Error("No se encontraron candidatos a Concejal en el CSV.");
         
-        document.getElementById('loadingOverlay').style.display = 'none';
+        console.log(`Cargado: ${intendentes.length} intendentes, ${concejalesIndividuales.length} concejales, ${Object.keys(listasConcejales).length} listas.`);
+        
+        if (overlay) overlay.style.display = 'none';
         return true;
     } catch (error) {
-        document.getElementById('loadingOverlay').innerHTML = `<div style="background:white; padding:2rem; border-radius:1rem; color:red;">Error al cargar CSV: ${error.message}<br><button onclick="location.reload()">Reintentar</button></div>`;
+        console.error("Error cargando CSV:", error);
+        if (overlay) {
+            overlay.innerHTML = `<div style="background:white; padding:2rem; border-radius:1rem; text-align:center; max-width:90%;">
+                <h3 style="color:#b0154f;">Error al cargar los datos</h3>
+                <p>${error.message}</p>
+                <p>Verifica que el archivo <strong>data/elecciones_san_estanislao.csv</strong> exista y tenga el formato correcto.</p>
+                <button onclick="location.reload()" style="background:#006D5B; color:white; border:none; padding:0.5rem 1rem; border-radius:2rem; cursor:pointer;">Reintentar</button>
+            </div>`;
+        }
         return false;
     }
 }
@@ -357,7 +385,7 @@ function renderTablaIntendentesPorLocal() {
     const thead = document.getElementById("intendentesHeader");
     const tbody = document.getElementById("intendentesBody");
     if(!thead) return;
-    let header = "<td><th>Local</th>";
+    let header = "<tr><th>Local</th>";
     intendentes.forEach(i=>{ header+=`<th>${i.nombre} (${i.lista})</th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -512,7 +540,6 @@ function loadDigitadorInterface() {
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("miLocalSpan").innerText = currentUser.localAsignado;
     
-    // Llenar select de intendentes en panel digitador
     const digIntendenteSelect = document.getElementById("digIntendenteSelect");
     if (digIntendenteSelect) {
         digIntendenteSelect.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
@@ -578,9 +605,6 @@ function renderMisCargas() {
 
 // -------------------- RENDER PANELES HTML --------------------
 function renderAdminPanel() {
-    const listasHeaders = Object.keys(listasConcejales).map(lid =>
-        `<th>Lista ${lid}<br><small>${listasConcejales[lid].nombre}</small></th>`).join('');
-
     document.getElementById("adminPanel").innerHTML = `
         <div class="admin-area">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
@@ -595,7 +619,6 @@ function renderAdminPanel() {
                 <button class="tab-btn" data-tab="logs"><i class="fas fa-list-alt"></i> Registro</button>
             </div>
 
-            <!-- TAB STATS -->
             <div id="tabStats" class="tab-content active">
                 <div class="mini-stats">
                     <div class="stat-card">
@@ -621,17 +644,11 @@ function renderAdminPanel() {
                 </div>
                 <div class="results-section">
                     <h3 style="margin-bottom:1rem; color:var(--radio-green);">Resultados por Local – Intendentes</h3>
-                    <table class="vote-table">
-                        <thead id="intendentesHeader"></thead>
-                        <tbody id="intendentesBody"></tbody>
-                    </table>
+                    <table class="vote-table"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table>
                 </div>
                 <div class="results-section">
                     <h3 style="margin-bottom:1rem; color:var(--radio-green);">Resultados por Local – Concejales (por lista)</h3>
-                    <table class="vote-table">
-                        <thead id="listasHeader"></thead>
-                        <tbody id="listasBody"></tbody>
-                    </table>
+                    <table class="vote-table"><thead id="listasHeader"></thead><tbody id="listasBody"></tbody></table>
                 </div>
                 <div class="results-section">
                     <h3 style="margin-bottom:1rem; color:var(--radio-green);">Distribución D'Hondt – Bancas Junta Municipal</h3>
@@ -639,10 +656,7 @@ function renderAdminPanel() {
                 </div>
                 <div class="results-section">
                     <h3 style="margin-bottom:1rem; color:var(--radio-green);">Concejales Electos (proyección)</h3>
-                    <table class="vote-table">
-                        <thead><tr><th>#</th><th>Lista</th><th>Candidato</th><th>Votos</th></tr></thead>
-                        <tbody id="electosBody"></tbody>
-                    </table>
+                    <table class="vote-table"><thead><tr><th>#</th><th>Lista</th><th>Candidato</th><th>Votos</th></tr></thead><tbody id="electosBody"></tbody></table>
                 </div>
                 <div class="results-section">
                     <h3 style="margin-bottom:1rem; color:var(--radio-green);">Detalle de Concejales por Lista</h3>
@@ -650,18 +664,12 @@ function renderAdminPanel() {
                 </div>
             </div>
 
-            <!-- TAB CARGA -->
             <div id="tabCarga" class="tab-content">
                 <div class="admin-quick-vote">
                     <h3 style="color:white;">Carga Rápida de Votos</h3>
                     <div class="quick-vote-grid">
-                        <select id="adminLocalSelect">
-                            ${locales.map(l => `<option value="${l}">${l}</option>`).join('')}
-                        </select>
-                        <select id="adminTipoSelect">
-                            <option value="intendente">Intendente</option>
-                            <option value="concejal">Concejal</option>
-                        </select>
+                        <select id="adminLocalSelect">${locales.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
+                        <select id="adminTipoSelect"><option value="intendente">Intendente</option><option value="concejal">Concejal</option></select>
                         <select id="adminCandidatoSelect"></select>
                         <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" min="1">
                         <button id="adminRegistrarBtn" class="btn-admin">Registrar Votos</button>
@@ -669,7 +677,6 @@ function renderAdminPanel() {
                 </div>
             </div>
 
-            <!-- TAB USERS -->
             <div id="tabUsers" class="tab-content">
                 <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; margin-bottom:1.5rem;">
                     <h3 style="color:var(--radio-green); margin-bottom:1rem;">Crear Digitador</h3>
@@ -677,27 +684,18 @@ function renderAdminPanel() {
                         <input type="text" id="newFullName" placeholder="Nombre completo">
                         <input type="text" id="newUsername" placeholder="Usuario">
                         <input type="password" id="newPassword" placeholder="Contraseña">
-                        <select id="newUserLocal">
-                            ${locales.map(l => `<option value="${l}">${l}</option>`).join('')}
-                        </select>
+                        <select id="newUserLocal">${locales.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
                         <button id="createUserBtn" class="btn-admin">Crear Usuario</button>
                     </div>
                     <h3 style="color:var(--radio-green); margin:1.5rem 0 1rem;">Usuarios Digitadores</h3>
-                    <table class="vote-table">
-                        <thead><tr><th>Nombre</th><th>Usuario</th><th>Local</th><th>Acciones</th></tr></thead>
-                        <tbody id="usersTableBody"></tbody>
-                    </table>
+                    <table class="vote-table"><thead><tr><th>Nombre</th><th>Usuario</th><th>Local</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
                 </div>
             </div>
 
-            <!-- TAB LOGS -->
             <div id="tabLogs" class="tab-content">
                 <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
                     <h3 style="color:var(--radio-green); margin-bottom:1rem;">Registro de Cargas</h3>
-                    <table class="vote-table">
-                        <thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato</th><th>Concejal</th><th>Votos</th></tr></thead>
-                        <tbody id="allLogsBody"></tbody>
-                    </table>
+                    <table class="vote-table"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Local</th><th>Tipo</th><th>Candidato</th><th>Concejal</th><th>Votos</th></tr></thead><tbody id="allLogsBody"></tbody></table>
                 </div>
             </div>
         </div>
@@ -726,10 +724,7 @@ function renderDigitadorPanel() {
             </div>
             <div style="background:white; border-radius:var(--border-radius); padding:1.5rem; overflow-x:auto;">
                 <h3 style="color:var(--radio-green); margin-bottom:1rem;">Mis cargas recientes</h3>
-                <table class="vote-table">
-                    <thead><tr><th>Fecha/Hora</th><th>Tipo</th><th>Candidato</th><th>Votos</th></tr></thead>
-                    <tbody id="misCargasBody"></tbody>
-                </table>
+                <table class="vote-table"><thead><tr><th>Fecha/Hora</th><th>Tipo</th><th>Candidato</th><th>Votos</th></tr></thead><tbody id="misCargasBody"></tbody></table>
             </div>
         </div>
     `;
@@ -759,13 +754,12 @@ function showLoginModal() {
             currentUser = found;
             modal.remove();
             if (found.role === "admin") {
-                // 1. Primero renderizar el HTML del panel (crea los elementos en el DOM)
                 renderAdminPanel();
                 document.getElementById("adminPanel").style.display = "block";
                 document.getElementById("digitadorPanel").style.display = "none";
                 document.getElementById("floatingLoginBtn").style.display = "none";
 
-                // 2. Ahora que los elementos existen, llenar datos y asignar eventos
+                // Configurar selects de carga rápida
                 const adminLocal = document.getElementById("adminLocalSelect");
                 const adminTipo = document.getElementById("adminTipoSelect");
                 const adminCandidato = document.getElementById("adminCandidatoSelect");
@@ -825,7 +819,6 @@ function showLoginModal() {
                     });
                 });
 
-                // Crear usuario
                 document.getElementById('createUserBtn').addEventListener('click', () => {
                     const fullName = document.getElementById('newFullName').value.trim();
                     const username = document.getElementById('newUsername').value.trim();
@@ -843,14 +836,11 @@ function showLoginModal() {
                 });
 
                 document.getElementById('logoutAdminBtn').addEventListener('click', logout);
-
-                // 3. Renderizar datos
                 renderAdminStats();
                 renderUsersTable();
                 renderAllLogs();
 
             } else {
-                // Digitador
                 renderDigitadorPanel();
                 document.getElementById("digitadorPanel").style.display = "block";
                 document.getElementById("adminPanel").style.display = "none";
@@ -880,24 +870,12 @@ async function startApp() {
     if (!success) return;
     loadPersistentData();
 
-    // Service Worker desactivado para evitar error 404
-    // if ('serviceWorker' in navigator) {
-    //     navigator.serviceWorker.register('/sw.js')
-    //         .then(reg => console.log('Service Worker registrado', reg))
-    //         .catch(err => console.error('Error al registrar SW:', err));
-    // }
-
-    // No se llenan selects que aún no existen en el DOM (están dentro de paneles ocultos)
-    // El evento del botón flotante se asigna siempre
     const floatingBtn = document.getElementById('floatingLoginBtn');
     if (floatingBtn) {
         floatingBtn.addEventListener('click', showLoginModal);
     } else {
         console.error("Botón flotante no encontrado");
     }
-    
-    // Los event listeners de logout, digitador y admin se asignan dinámicamente
-    // dentro de showLoginModal() una vez que se renderizan los paneles.
 }
 
 startApp();
