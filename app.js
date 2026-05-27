@@ -76,11 +76,14 @@ async function cargarDatosDesdeCSV() {
                         candidatos: []
                     };
                 }
-                listasConcejales[lista].candidatos[opcion-1] = `${opcion} — ${row.Nombre}`;
+                listasConcejales[lista].candidatos[opcion-1] = { opcion, nombre: row.Nombre };
             }
         }
+        // Asegurar que los arrays de candidatos estén completos
         for (let lista in listasConcejales) {
             listasConcejales[lista].candidatos = listasConcejales[lista].candidatos.filter(c => c);
+            // Ordenar por opción (número)
+            listasConcejales[lista].candidatos.sort((a,b) => a.opcion - b.opcion);
         }
         
         if (intendentes.length === 0 || concejalesIndividuales.length === 0) {
@@ -222,10 +225,10 @@ function calcularResultadosConcejales() {
         }
     }
     
-    // Ordenar candidatos dentro de cada lista por votos individuales
-    const candidatosPorLista = {};
+    // Ordenar candidatos dentro de cada lista por votos individuales (para determinar electos)
+    const candidatosPorListaOrdenados = {};
     for (const listaId in listasConcejales) {
-        candidatosPorLista[listaId] = concejalesIndividuales
+        candidatosPorListaOrdenados[listaId] = concejalesIndividuales
             .filter(c => c.lista === listaId)
             .map(c => ({ ...c, votos: votosIndividuales[c.id] }))
             .sort((a, b) => b.votos - a.votos);
@@ -235,36 +238,41 @@ function calcularResultadosConcejales() {
     const electos = [];
     for (const listaId in bancasPorLista) {
         const bancas = bancasPorLista[listaId];
-        const candidatosOrdenados = candidatosPorLista[listaId];
+        const candidatosOrdenados = candidatosPorListaOrdenados[listaId];
         for (let i = 0; i < bancas && i < candidatosOrdenados.length; i++) {
             electos.push(candidatosOrdenados[i]);
         }
     }
-    
-    // Ordenar electos por votos individuales (global)
     electos.sort((a, b) => b.votos - a.votos);
     
-    // Ranking completo (todos los candidatos ordenados por votos)
-    const todosLosCandidatos = [];
-    for (const listaId in candidatosPorLista) {
-        todosLosCandidatos.push(...candidatosPorLista[listaId]);
+    // Para mostrar detalle en orden original (por número), construimos lista de candidatos con votos pero orden original
+    const candidatosPorListaOriginal = {};
+    for (const listaId in listasConcejales) {
+        candidatosPorListaOriginal[listaId] = listasConcejales[listaId].candidatos.map(c => {
+            const concejal = concejalesIndividuales.find(ci => ci.lista === listaId && ci.opcion === c.opcion);
+            return {
+                opcion: c.opcion,
+                nombre: c.nombre,
+                votos: concejal ? votosIndividuales[concejal.id] : 0
+            };
+        });
     }
-    todosLosCandidatos.sort((a, b) => b.votos - a.votos);
     
-    return { votosPorLista, bancasPorLista, candidatosPorLista, electos, todosLosCandidatos };
+    return { votosPorLista, bancasPorLista, candidatosPorListaOriginal, electos };
 }
 
 // -------------------- RENDER ADMIN --------------------
 function renderAdminStats() {
     renderTablaIntendentesPorLocal();
     renderTablaListasPorLocal();
-    renderDetalleConcejales();
     
     const resultados = calcularResultadosConcejales();
     renderDhondt(resultados.votosPorLista, resultados.bancasPorLista);
-    renderElectosYRanking(resultados.electos, resultados.todosLosCandidatos);
+    renderElectos(resultados.electos);
+    renderDetalleConcejales(resultados.candidatosPorListaOriginal);
+    renderMiniResumen();
     
-    // Gráficos con porcentajes
+    // Gráficos con porcentajes visibles (usando plugin datalabels)
     const totalInt = totalIntendentes();
     const totalIntSum = Object.values(totalInt).reduce((a,b)=>a+b,0);
     const ctxInt = document.getElementById('intendentesChart')?.getContext('2d');
@@ -282,15 +290,18 @@ function renderAdminStats() {
             options: {
                 responsive: true,
                 plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const val = ctx.raw;
-                                const percent = totalIntSum ? ((val/totalIntSum)*100).toFixed(1) : 0;
-                                return `${ctx.label}: ${val.toLocaleString()} votos (${percent}%)`;
-                            }
-                        }
-                    }
+                    datalabels: {
+                        backgroundColor: '#ffffffcc',
+                        borderRadius: 4,
+                        padding: 4,
+                        formatter: (value, ctx) => {
+                            const percent = totalIntSum ? ((value/totalIntSum)*100).toFixed(1) : 0;
+                            return `${percent}%`;
+                        },
+                        color: '#1a2e2a',
+                        font: { weight: 'bold', size: 12 }
+                    },
+                    tooltip: { enabled: true }
                 }
             }
         });
@@ -301,30 +312,53 @@ function renderAdminStats() {
     const ctxList = document.getElementById('listasChart')?.getContext('2d');
     if (ctxList) {
         if (chartList) chartList.destroy();
+        const listaIds = Object.keys(listasConcejales);
         chartList = new Chart(ctxList, {
-            type: 'pie',
+            type: 'bar',
             data: {
-                labels: Object.keys(listasConcejales).map(l=>`Lista ${l}`),
+                labels: listaIds.map(l => `Lista ${l}`),
                 datasets: [{
-                    data: Object.keys(listasConcejales).map(l=>totalListas[l]||0),
-                    backgroundColor: Object.values(listasConcejales).map(l=>l.color)
+                    label: 'Votos',
+                    data: listaIds.map(l => totalListas[l] || 0),
+                    backgroundColor: listaIds.map(l => listasConcejales[l].color),
+                    borderRadius: 8
                 }]
             },
             options: {
                 responsive: true,
+                indexAxis: 'y', // barras horizontales
                 plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const val = ctx.raw;
-                                const percent = totalListasSum ? ((val/totalListasSum)*100).toFixed(1) : 0;
-                                return `${ctx.label}: ${val.toLocaleString()} votos (${percent}%)`;
-                            }
-                        }
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'right',
+                        formatter: (value, ctx) => {
+                            const percent = totalListasSum ? ((value/totalListasSum)*100).toFixed(1) : 0;
+                            return `${value.toLocaleString()} (${percent}%)`;
+                        },
+                        color: '#1a2e2a',
+                        font: { weight: 'bold', size: 11 }
                     }
+                },
+                scales: {
+                    x: { beginAtZero: true, title: { display: true, text: 'Cantidad de votos' } }
                 }
             }
         });
+    }
+}
+
+function renderMiniResumen() {
+    const totalInt = totalIntendentes();
+    const totalIntSum = Object.values(totalInt).reduce((a,b)=>a+b,0);
+    const resumenInt = document.getElementById("resumenIntendentes");
+    if (resumenInt) {
+        resumenInt.innerHTML = intendentes.map(i => `<p>${i.nombre}: <strong>${totalInt[i.id].toLocaleString()}</strong> (${totalIntSum ? ((totalInt[i.id]/totalIntSum)*100).toFixed(1) : 0}%)</p>`).join('');
+    }
+    const totalListas = totalVotosPorLista();
+    const totalListasSum = Object.values(totalListas).reduce((a,b)=>a+b,0);
+    const resumenConc = document.getElementById("resumenConcejales");
+    if (resumenConc) {
+        resumenConc.innerHTML = Object.keys(listasConcejales).map(lid => `<p>Lista ${lid}: <strong>${(totalListas[lid]||0).toLocaleString()}</strong> (${totalListasSum ? ((totalListas[lid]/totalListasSum)*100).toFixed(1) : 0}%)</p>`).join('');
     }
 }
 
@@ -356,7 +390,7 @@ function renderTablaListasPorLocal() {
     const thead = document.getElementById("listasHeader");
     const tbody = document.getElementById("listasBody");
     if(!thead) return;
-    let header = "<table><th>Local</th>";
+    let header = "</table><th>Local</th>";
     Object.keys(listasConcejales).forEach(lid=>{ header+=`<th>Lista ${lid}<br><small>${listasConcejales[lid].nombre}</small></th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -399,34 +433,27 @@ function renderDhondt(votosPorLista, bancasPorLista) {
     container.innerHTML = html;
 }
 
-function renderElectosYRanking(electos, todosLosCandidatos) {
+function renderElectos(electos) {
     const electosBody = document.getElementById("electosBody");
     if (electosBody) {
         electosBody.innerHTML = electos.map((c, idx) => `
             <tr><td>${idx+1}°</td><td>Lista ${c.lista}</td><td>${c.nombre}</td><td>${c.votos.toLocaleString()}</td></tr>
         `).join('');
     }
-    const rankingBody = document.getElementById("rankingBody");
-    if (rankingBody) {
-        rankingBody.innerHTML = todosLosCandidatos.map((c, idx) => `
-            <tr><td>${idx+1}°</td><td>Lista ${c.lista}</td><td>${c.nombre}</td><td>${c.votos.toLocaleString()}</td><td>${electos.find(e=>e.id===c.id)?'✅ Sí':'—'}</td></tr>
-        `).join('');
-    }
 }
 
-function renderDetalleConcejales() {
-    const resultados = calcularResultadosConcejales();
+function renderDetalleConcejales(candidatosPorListaOriginal) {
     const container = document.getElementById("concejalesDetalle");
     if (!container) return;
     let html = `<div style="display:flex; flex-wrap:wrap; gap:1rem;">`;
-    for (const [lid, candidatos] of Object.entries(resultados.candidatosPorLista)) {
+    for (const [lid, candidatos] of Object.entries(candidatosPorListaOriginal)) {
         const listaInfo = listasConcejales[lid];
         html += `<div style="flex:1; min-width:240px; background:#fef9ef; border-radius:1rem; padding:1rem; border-left:6px solid ${listaInfo.color};">
             <h4>Lista ${lid} – ${listaInfo.nombre}</h4>
             <p><strong>Total votos lista:</strong> ${candidatos.reduce((sum,c)=>sum+c.votos,0).toLocaleString()}</p>
             <ol style="margin-top:0.5rem; padding-left:1rem;">`;
         candidatos.forEach(c => {
-            html += `<li>${c.nombre} (${c.votos.toLocaleString()} votos)</li>`;
+            html += `<li>${c.opcion} — ${c.nombre} (${c.votos.toLocaleString()} votos)</li>`;
         });
         html += `</ol></div>`;
     }
@@ -490,7 +517,7 @@ function loadDigitadorInterface() {
         if (this.value) {
             const candidatos = listasConcejales[this.value].candidatos;
             concejalSelect.disabled = false;
-            concejalSelect.innerHTML = '<option value="">Seleccione concejal</option>' + candidatos.map(c => `<option value="${c}">${c}</option>`).join('');
+            concejalSelect.innerHTML = '<option value="">Seleccione concejal</option>' + candidatos.map(c => `<option value="${c.opcion} — ${c.nombre}">${c.opcion} — ${c.nombre}</option>`).join('');
         } else {
             concejalSelect.disabled = true;
             concejalSelect.innerHTML = '<option value="">Primero elija lista</option>';
@@ -552,9 +579,9 @@ function showLoginModal() {
                         let html = '';
                         for (const [lid, info] of Object.entries(listasConcejales)) {
                             for (let candidato of info.candidatos) {
-                                const concejalObj = concejalesIndividuales.find(c => c.lista === lid && c.nombre === candidato.split(' — ')[1]);
+                                const concejalObj = concejalesIndividuales.find(c => c.lista === lid && c.opcion === candidato.opcion);
                                 if (concejalObj) {
-                                    html += `<option value="${concejalObj.id}" data-lista="${lid}">Lista ${lid} - ${candidato}</option>`;
+                                    html += `<option value="${concejalObj.id}" data-lista="${lid}">Lista ${lid} - ${candidato.opcion} — ${candidato.nombre}</option>`;
                                 }
                             }
                         }
@@ -642,9 +669,9 @@ async function startApp() {
     document.getElementById('cargarConcejalBtn')?.addEventListener('click', () => {
         if(!currentUser || currentUser.role !== 'digitador') return;
         const listaId = document.getElementById('digListaSelect').value;
-        const concejalNombreCompleto = document.getElementById('digConcejalSelect').value;
-        if (!listaId || !concejalNombreCompleto) { alert("Seleccione lista y concejal"); return; }
-        const concejalObj = concejalesIndividuales.find(c => c.lista === listaId && (`${c.opcion} — ${c.nombre}` === concejalNombreCompleto));
+        const concejalTexto = document.getElementById('digConcejalSelect').value;
+        if (!listaId || !concejalTexto) { alert("Seleccione lista y concejal"); return; }
+        const concejalObj = concejalesIndividuales.find(c => c.lista === listaId && `${c.opcion} — ${c.nombre}` === concejalTexto);
         if (!concejalObj) { alert("Error al identificar concejal"); return; }
         const votos = parseInt(document.getElementById('digVotosConcejal').value);
         if (votos <= 0) { alert("Cantidad inválida"); return; }
