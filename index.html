@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,6 +36,12 @@
                 <p>Actualización en tiempo real desde los locales de votación</p>
             </div>
 
+            <!-- Mini tarjetas resumen -->
+            <div class="mini-stats">
+                <div class="stat-card"><i class="fas fa-user-tie"></i><h3>Intendentes</h3><div id="resumenIntendentes"></div></div>
+                <div class="stat-card"><i class="fas fa-users"></i><h3>Concejales</h3><div id="resumenConcejales"></div></div>
+            </div>
+
             <!-- Módulo de carga rápida admin -->
             <div class="admin-quick-vote">
                 <h3><i class="fas fa-bolt"></i> Registro rápido de votos (Admin)</h3>
@@ -52,7 +59,7 @@
 
             <div class="charts-panel">
                 <div class="chart-card"><h3><i class="fas fa-user-tie"></i> Votos Intendentes (porcentaje)</h3><canvas id="intendentesChart"></canvas></div>
-                <div class="chart-card"><h3><i class="fas fa-users"></i> Votos por Lista de Concejales (porcentaje)</h3><canvas id="listasChart"></canvas></div>
+                <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Votos por Lista de Concejales (porcentaje)</h3><canvas id="listasChart"></canvas></div>
             </div>
 
             <div class="results-section"><h3><i class="fas fa-map-pin"></i> Votos a Intendentes por Local</h3><div style="overflow-x:auto;"><table class="vote-table" id="intendentesPorLocalTable"><thead id="intendentesHeader"></thead><tbody id="intendentesBody"></tbody></table></div></div>
@@ -75,18 +82,8 @@
                 </div>
             </div>
 
-            <!-- Ranking completo de concejales (todos, ordenados por votos) -->
-            <div class="results-section">
-                <h3><i class="fas fa-chart-simple"></i> Ranking general de concejales (todos los candidatos)</h3>
-                <div style="overflow-x:auto;">
-                    <table class="vote-table" id="rankingTable">
-                        <thead><tr><th>Posición</th><th>Lista</th><th>Candidato</th><th>Votos</th><th>Electo</th></tr></thead>
-                        <tbody id="rankingBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="results-section"><h3><i class="fas fa-user-friends"></i> Detalle de candidatos por lista (ordenados por votos)</h3><div id="concejalesDetalle"></div></div>
+            <!-- Detalle de candidatos por lista (orden original por número) -->
+            <div class="results-section"><h3><i class="fas fa-user-friends"></i> Detalle de candidatos por lista (orden original, con votos individuales)</h3><div id="concejalesDetalle"></div></div>
         </div>
 
         <div id="tabUsers" class="tab-content">
@@ -100,7 +97,7 @@
                     <button id="createUserBtn" style="grid-column: span 2;">Crear Usuario</button>
                 </div>
                 <h3 style="margin-top:1.5rem;">Usuarios digitadores existentes</h3>
-                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
+                <table class="vote-table" id="usersTable"><thead><tr><th>Nombre completo</th><th>Usuario</th><th>Local asignado</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody>能有</table>
                 <button id="logoutAdminBtn" class="btn-admin logout-btn" style="margin-top:1rem;"><i class="fas fa-sign-out-alt"></i> Cerrar sesión Admin</button>
             </div>
         </div>
