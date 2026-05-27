@@ -34,7 +34,7 @@ let votosConcejales = {};      // { local: { concejalId: votos } }
 let cargas = [];               // logs recientes
 let listenersActive = false;
 
-// Chart instances
+// Instancias de Gráficos
 let chartInt, chartList;
 
 // -------------------- FUNCIONES DE PARSEO CSV --------------------
@@ -546,6 +546,7 @@ function renderDhondt(votosPorLista, bancasPorLista) {
     container.innerHTML = html;
 }
 
+// Proyección de Concejales Electos
 function renderElectos(electos) {
     const electosBody = document.getElementById("electosBody");
     if (electosBody) {
@@ -563,7 +564,6 @@ function renderDetalleConcejales(candidatosPorListaOriginal) {
     let html = `<div style="display:flex; flex-wrap:wrap; gap:1rem;">`;
     for (const [lid, candidatos] of Object.entries(candidatosPorListaOriginal)) {
         const listaInfo = listasConcejales[lid];
-        // CORRECCIÓN: Añadido color explícito oscuro al bloque de desglose por listas individuales
         html += `<div style="flex:1; min-width:240px; background:#fef9ef; border-radius:1rem; padding:1rem; border-left:6px solid ${listaInfo.color}; color:#1a2e2a;">
             <h4 style="color:var(--radio-green); margin-bottom:0.3rem;">Lista ${lid}</h4>
             <p style="font-size:0.8rem; opacity:0.8; margin-bottom:0.5rem;">${listaInfo.nombre}</p>
@@ -656,7 +656,7 @@ function renderAllLogs() {
     `).join("");
 }
 
-// -------------------- DIGITADOR INTERFACE --------------------
+// -------------------- PANEL DEL DIGITADOR --------------------
 function renderDigitadorPanel() {
     document.getElementById("digitadorPanel").innerHTML = `
         <div class="digitador-container">
@@ -756,9 +756,8 @@ function renderMisCargas() {
     `).join("");
 }
 
-// -------------------- ADMIN PANEL HTML Y LÓGICA --------------------
+// -------------------- ESTRUCTURA HTML DEL PANEL ADMIN --------------------
 function renderAdminPanel() {
-    // CORRECCIÓN: Agregado 'color: #1a2e2a;' explícito en las pestañas "tabUsers" y "tabLogs" para anular el color heredado blanco del contenedor padre .admin-area
     document.getElementById("adminPanel").innerHTML = `
         <div class="admin-area">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
@@ -839,6 +838,7 @@ function setupAdminEvents() {
     const adminLocal = document.getElementById("adminLocalSelect");
     const adminTipo = document.getElementById("adminTipoSelect");
     const adminCandidato = document.getElementById("adminCandidatoSelect");
+    
     function actualizarAdminSelect() {
         if (adminTipo.value === "intendente") {
             adminCandidato.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
@@ -904,8 +904,27 @@ async function login(username, password) {
     try {
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
+        
+        // 1. Validar correo y contraseña
         const userCred = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, "users", normalizedUsername));
+        
+        // 2. Buscar datos en base de datos
+        let userDoc = await getDoc(doc(db, "users", normalizedUsername));
+        
+        // 🔥 AUTO-REPARACIÓN: Si entra el Admin pero su documento Firestore desapareció, se vuelve a crear al instante.
+        if (!userDoc.exists() && normalizedUsername === "admin") {
+            console.log("Perfil de Admin ausente en Firestore. Recreando automáticamente...");
+            await setDoc(doc(db, "users", "admin"), {
+                uid: userCred.user.uid,
+                username: "Admin",
+                fullName: "Administrador",
+                role: "admin",
+                localAsignado: null
+            });
+            userDoc = await getDoc(doc(db, "users", normalizedUsername));
+        }
+
+        // 3. Evaluar permisos y enrutar
         if (userDoc.exists()) {
             const userData = userDoc.data();
             if (userData.disabled) {
@@ -978,7 +997,7 @@ function showLoginModal() {
     document.getElementById('loginPass').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
 }
 
-// -------------------- INICIO --------------------
+// -------------------- INICIO Y PERSISTENCIA DE LA APP --------------------
 async function startApp() {
     const success = await cargarDatosDesdeCSV();
     if (!success) return;
@@ -1000,6 +1019,19 @@ async function startApp() {
                 if (!docSnap.data().disabled) {
                     userData = { ...docSnap.data(), uid: user.uid };
                 }
+            }
+            
+            // 🔥 AUTO-REPARACIÓN EN SEGUNDA LÍNEA: Si la sesión está activa pero Firestore se borró, reconstruye al recargar.
+            if (!userData && user.email === "admin@bocadeurna.local") {
+                console.log("Sesión activa detectada pero sin datos. Reconstruyendo documento del Admin...");
+                await setDoc(doc(db, "users", "admin"), {
+                    uid: user.uid,
+                    username: "Admin",
+                    fullName: "Administrador",
+                    role: "admin",
+                    localAsignado: null
+                });
+                userData = { uid: user.uid, username: "Admin", fullName: "Administrador", role: "admin", localAsignado: null };
             }
             
             if (userData) {
