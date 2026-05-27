@@ -266,7 +266,6 @@ function renderAdminStats() {
     renderDetalleConcejales(resultados.candidatosPorListaOriginal);
     renderMiniResumen();
     
-    // Gráfico intendentes (torta con porcentaje siempre visible)
     const totalInt = totalIntendentes();
     const totalIntSum = Object.values(totalInt).reduce((a,b)=>a+b,0);
     const ctxInt = document.getElementById('intendentesChart')?.getContext('2d');
@@ -300,7 +299,6 @@ function renderAdminStats() {
         });
     }
     
-    // Gráfico listas de concejales (barras verticales con porcentaje)
     const totalListas = resultados.votosPorLista;
     const totalListasSum = Object.values(totalListas).reduce((a,b)=>a+b,0);
     const ctxList = document.getElementById('listasChart')?.getContext('2d');
@@ -500,7 +498,8 @@ function renderAllLogs() {
     if(!tbody) return;
     tbody.innerHTML = cargas.slice(0,200).map(c => `
         <tr>
-            <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.usuario}</td><td>${c.local}</td><td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
+            <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.usuario}</td><td>${c.local}</td>
+            <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
             <td>${c.candidatoId ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.listaId ? `Lista ${c.listaId}` : '')}</td>
             <td>${c.concejalNombre || '-'}</td><td>${c.votos}</td>
         </tr>
@@ -537,14 +536,15 @@ function renderMisCargas() {
     const misCargas = cargas.filter(c => c.usuario === currentUser.username).slice(0,30);
     tbody.innerHTML = misCargas.map(c => `
         <tr>
-            <td>${new Date(c.timestamp).toLocaleString()}</td><td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
+            <td>${new Date(c.timestamp).toLocaleString()}</td>
+            <td>${c.tipo === "intendente" ? "Intendente" : "Concejal"}</td>
             <td>${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
             <td>${c.votos}</td>
         </tr>
     `).join("");
 }
 
-// -------------------- LOGIN (MODIFICADO CON LOGO) --------------------
+// -------------------- LOGIN CON LOGO GRANDE --------------------
 function showLoginModal() {
     const modal = document.createElement('div');
     modal.className = 'login-modal';
@@ -658,7 +658,6 @@ async function startApp() {
     if (!success) return;
     loadPersistentData();
 
-    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('Service Worker registrado', reg))
