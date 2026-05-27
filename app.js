@@ -673,11 +673,16 @@ function escucharVotos() {
         });
     }
     
-    const logsQuery = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(200));
+    const logsQuery = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(500));
     onSnapshot(logsQuery, (snapshot) => {
         cargas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (currentUser && currentUser.role === 'admin') {
             renderAllLogs();
+            // Refrescar gestión de cargas si la pestaña está activa
+            const tabCarga = document.getElementById('tabCarga');
+            if (tabCarga && tabCarga.classList.contains('active')) {
+                renderGestionCargas();
+            }
         } else if (currentUser && currentUser.role === 'digitador') {
             renderMisCargas();
         }
@@ -1182,7 +1187,96 @@ function renderAllLogs() {
     `}).join("");
 }
 
-// -------------------- PANEL DEL DIGITADOR – WIZARD MÓVIL PASO A PASO --------------------
+// -------------------- GESTIÓN DE CARGAS (ADMIN: VER Y ANULAR) --------------------
+function renderGestionCargas() {
+    const tbody = document.getElementById("gestionCargasBody");
+    if (!tbody) return;
+
+    const filtroLocal  = document.getElementById("gestionFiltroLocal")?.value  || '';
+    const filtroTipo   = document.getElementById("gestionFiltroTipo")?.value   || '';
+    const filtroAccion = document.getElementById("gestionFiltroAccion")?.value || '';
+
+    // Solo mostrar cargas originales de digitadores (no sustracción) para la vista de gestión
+    let lista = cargas.slice(0, 500);
+    if (filtroLocal)  lista = lista.filter(c => c.local === filtroLocal);
+    if (filtroTipo)   lista = lista.filter(c => c.tipo === filtroTipo);
+    if (filtroAccion === 'carga')      lista = lista.filter(c => c.accion !== 'sustraccion');
+    if (filtroAccion === 'sustraccion') lista = lista.filter(c => c.accion === 'sustraccion');
+
+    if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--radio-text-muted);">No hay registros para los filtros seleccionados.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(c => {
+        const esSustraccion = c.accion === 'sustraccion';
+        const candidatoLabel = c.candidatoId
+            ? (intendentes.find(i => i.id === c.candidatoId)?.nombre || c.candidatoId)
+            : (c.concejalNombre || (c.listaId ? `Lista ${c.listaId}` : '-'));
+        const votosDisplay = esSustraccion
+            ? `<span style="color:var(--radio-fuchsia); font-weight:700;">−${Math.abs(c.votos)}</span>`
+            : `<span style="color:var(--radio-green); font-weight:700;">+${c.votos}</span>`;
+        const estadoBadge = esSustraccion
+            ? `<span style="background:#fdf2f6; color:var(--radio-fuchsia); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; white-space:nowrap;">ANULADA</span>`
+            : `<span style="background:var(--radio-green-light); color:var(--radio-green); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; white-space:nowrap;">VIGENTE</span>`;
+        const tipoBadge = `<span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; font-weight:bold; ${c.tipo === "intendente" ? 'background:var(--radio-green-light); color:var(--radio-green);' : 'background:var(--radio-fuchsia-light); color:var(--radio-fuchsia);'}">${c.tipo === "intendente" ? "Intendente" : "Concejal"}</span>`;
+
+        // Botón anular solo aparece en cargas vigentes de digitadores (no en sustraccion ni en cargas del admin)
+        const puedeAnular = !esSustraccion && c.id;
+        const btnAnular = puedeAnular
+            ? `<button class="btn-anular-carga" data-id="${c.id}" data-local="${c.local}" data-tipo="${c.tipo}" data-candidato="${c.candidatoId || ''}" data-lista="${c.listaId || ''}" data-concejal="${c.concejalNombre || ''}" data-votos="${c.votos}" style="background:var(--radio-fuchsia); color:white; border:none; padding:5px 14px; border-radius:var(--radius-sm); font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap;">Anular</button>`
+            : `<span style="color:var(--radio-text-muted); font-size:0.82rem;">—</span>`;
+
+        return `
+        <tr style="${esSustraccion ? 'opacity:0.6; background:#fff8f9;' : ''}">
+            <td style="color:var(--radio-text-muted); font-size:0.83rem; white-space:nowrap;">${new Date(c.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</td>
+            <td style="font-weight:600; font-size:0.9rem;">${c.usuario}</td>
+            <td style="font-size:0.85rem;">${c.local}</td>
+            <td>${tipoBadge}</td>
+            <td class="candidate-name" style="font-size:0.88rem;">${candidatoLabel}</td>
+            <td style="text-align:right;">${votosDisplay}</td>
+            <td>${estadoBadge}</td>
+            <td>${btnAnular}</td>
+        </tr>`;
+    }).join('');
+
+    // Asignar handlers a botones anular
+    tbody.querySelectorAll('.btn-anular-carga').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const local      = btn.dataset.local;
+            const tipo       = btn.dataset.tipo;
+            const candidato  = btn.dataset.candidato;
+            const listaId    = btn.dataset.lista;
+            const concejal   = btn.dataset.concejal;
+            const votos      = parseInt(btn.dataset.votos);
+            const nombreDisplay = tipo === 'intendente'
+                ? (intendentes.find(i => i.id === candidato)?.nombre || candidato)
+                : (concejal || `Lista ${listaId}`);
+
+            if (!confirm(`¿Anular esta carga?\n\n• ${tipo === 'intendente' ? 'Intendente' : 'Concejal'}: ${nombreDisplay}\n• Local: ${local}\n• Votos: ${votos}\n\nSe restará del conteo y quedará registrado en la Auditoría de Carga.`)) return;
+
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            let ok = false;
+            if (tipo === 'intendente') {
+                ok = await registrarSustraccion(local, 'intendente', candidato, votos, currentUser.username);
+            } else {
+                ok = await registrarSustraccion(local, 'concejal', candidato, votos, currentUser.username, concejal || null, listaId || null);
+            }
+
+            if (ok) {
+                mostrarNotificacion(`Carga anulada correctamente. Registrado en Auditoría.`, 'warning');
+            } else {
+                mostrarNotificacion('Error al anular la carga. Intente nuevamente.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Anular';
+            }
+        });
+    });
+}
+
+
 function renderDigitadorPanel() {
     document.getElementById("digitadorPanel").innerHTML = `
         <div class="mobile-wizard-container">
@@ -1505,17 +1599,46 @@ function renderAdminPanel() {
                 <div class="results-section"><h3>Detalle de Votos Preferenciales por Candidato</h3><div id="concejalesDetalle"></div></div>
             </div>
             <div id="tabCarga" class="tab-content">
-                <div class="admin-quick-vote">
-                    <h3>Gestión de Carga de Votos</h3>
-                    <div class="quick-vote-grid">
-                        <select id="adminLocalSelect">${locales.map(l => `<option value="${l}">${l}</option>`).join('')}</select>
-                        <select id="adminTipoSelect"><option value="intendente">Intendente</option><option value="concejal">Concejal</option></select>
-                        <select id="adminCandidatoSelect"></select>
-                        <input type="number" id="adminVotosInput" placeholder="Cantidad de votos" min="1" pattern="[0-9]*" inputmode="numeric">
-                        <button id="adminRegistrarBtn" class="btn-admin" style="background:var(--radio-green);">&#43; Agregar Votos</button>
-                        <button id="adminQuitarBtn" class="btn-admin" style="background:var(--radio-fuchsia);">&#8722; Quitar Votos (con Auditoría)</button>
+                <div style="background:white; border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-card); margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+                        <h3 style="color:var(--radio-green); margin:0;">Gestión de Cargas de Digitadores</h3>
+                        <span style="font-size:0.82rem; color:var(--radio-text-muted); background:var(--radio-green-light); padding:6px 14px; border-radius:20px;">
+                            <i class="fas fa-info-circle"></i> Solo digitadores pueden agregar votos. El admin puede anular cargas erróneas.
+                        </span>
                     </div>
-                    <p style="font-size:0.8rem; color:var(--radio-text-muted); margin-top:0.5rem;"><i class="fas fa-shield-alt"></i> Toda sustracción de votos queda registrada en la Auditoría de Carga con marca de tiempo y usuario responsable.</p>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+                        <select id="gestionFiltroLocal" style="flex:1; min-width:160px; padding:10px 14px; border:1px solid var(--radio-border); border-radius:var(--radius-md); font-size:0.9rem; background:#f8fafc; color:var(--radio-text);">
+                            <option value="">Todos los locales</option>
+                            ${locales.map(l => `<option value="${l}">${l}</option>`).join('')}
+                        </select>
+                        <select id="gestionFiltroTipo" style="flex:1; min-width:140px; padding:10px 14px; border:1px solid var(--radio-border); border-radius:var(--radius-md); font-size:0.9rem; background:#f8fafc; color:var(--radio-text);">
+                            <option value="">Todos los tipos</option>
+                            <option value="intendente">Intendente</option>
+                            <option value="concejal">Concejal</option>
+                        </select>
+                        <select id="gestionFiltroAccion" style="flex:1; min-width:140px; padding:10px 14px; border:1px solid var(--radio-border); border-radius:var(--radius-md); font-size:0.9rem; background:#f8fafc; color:var(--radio-text);">
+                            <option value="">Todas las acciones</option>
+                            <option value="carga">Solo cargas</option>
+                            <option value="sustraccion">Solo anulaciones</option>
+                        </select>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="vote-table" id="gestionCargasTable">
+                            <thead>
+                                <tr>
+                                    <th>Hora</th>
+                                    <th>Digitador</th>
+                                    <th>Local</th>
+                                    <th>Tipo</th>
+                                    <th>Candidato / Concejal</th>
+                                    <th style="text-align:right;">Votos</th>
+                                    <th>Estado</th>
+                                    <th>Acción Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gestionCargasBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             <div id="tabUsers" class="tab-content">
@@ -1553,84 +1676,16 @@ function setupAdminEvents() {
             if (tabName === 'logs') renderAllLogs();
             if (tabName === 'users') renderUsersTable();
             if (tabName === 'stats') renderAdminStats();
+            if (tabName === 'carga') renderGestionCargas();
         });
     });
-    
-    const adminLocal = document.getElementById("adminLocalSelect");
-    const adminTipo = document.getElementById("adminTipoSelect");
-    const adminCandidato = document.getElementById("adminCandidatoSelect");
-    
-    function actualizarAdminSelect() {
-        if (adminTipo.value === "intendente") {
-            adminCandidato.innerHTML = intendentes.map(i => `<option value="${i.id}">${i.nombre} (${i.lista})</option>`).join('');
-        } else {
-            let html = '';
-            for (const [lid, info] of Object.entries(listasConcejales)) {
-                for (let candidato of info.candidatos) {
-                    const concejalObj = concejalesIndividuales.find(c => c.lista === lid && c.opcion === candidato.opcion);
-                    if (concejalObj) {
-                        html += `<option value="${concejalObj.id}" data-lista="${lid}">Lista ${lid} - Opción ${candidato.opcion} — ${candidato.nombre}</option>`;
-                    }
-                }
-            }
-            adminCandidato.innerHTML = html;
-        }
-    }
-    adminTipo.addEventListener('change', actualizarAdminSelect);
-    actualizarAdminSelect();
-    
-    document.getElementById("adminRegistrarBtn").onclick = async () => {
-        const local = adminLocal.value;
-        const tipo = adminTipo.value;
-        const inputVotos = document.getElementById("adminVotosInput");
-        const votos = parseInt(inputVotos.value);
-        if (isNaN(votos) || votos <= 0) { mostrarNotificacion("Cantidad de votos inválida", "error"); return; }
-        
-        if (tipo === "intendente") {
-            const id = adminCandidato.value;
-            if (await registrarVoto(local, "intendente", id, votos, currentUser.username)) {
-                mostrarNotificacion("Voto de Intendente asentado correctamente.", "success");
-            } else mostrarNotificacion("Error al guardar", "error");
-        } else {
-            const selected = adminCandidato.options[adminCandidato.selectedIndex];
-            const concejalId = selected.value;
-            const listaId = selected.getAttribute("data-lista");
-            const rawText = selected.text.split(' — ')[1] || selected.text;
-            if (await registrarVoto(local, "concejal", concejalId, votos, currentUser.username, rawText, listaId)) {
-                mostrarNotificacion("Voto preferencial de Concejal asentado.", "success");
-            } else mostrarNotificacion("Error al guardar", "error");
-        }
-        inputVotos.value = "";
-    };
 
-    document.getElementById("adminQuitarBtn").onclick = async () => {
-        const local = adminLocal.value;
-        const tipo = adminTipo.value;
-        const inputVotos = document.getElementById("adminVotosInput");
-        const votos = parseInt(inputVotos.value);
-        if (isNaN(votos) || votos <= 0) { mostrarNotificacion("Indique la cantidad de votos a quitar.", "error"); return; }
-        
-        const candidatoNombre = adminCandidato.options[adminCandidato.selectedIndex]?.text || '';
-        const confirmMsg = `¿Confirma QUITAR ${votos} voto(s) de:\n"${candidatoNombre}"\nLocal: ${local}\n\nEsta acción quedará registrada en la Auditoría de Carga.`;
-        if (!confirm(confirmMsg)) return;
+    // Filtros de la gestión de cargas
+    ['gestionFiltroLocal','gestionFiltroTipo','gestionFiltroAccion'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', renderGestionCargas);
+    });
 
-        if (tipo === "intendente") {
-            const id = adminCandidato.value;
-            if (await registrarSustraccion(local, "intendente", id, votos, currentUser.username)) {
-                mostrarNotificacion(`Se quitaron ${votos} voto(s). Registrado en auditoría.`, "warning");
-            } else mostrarNotificacion("Error al quitar votos", "error");
-        } else {
-            const selected = adminCandidato.options[adminCandidato.selectedIndex];
-            const concejalId = selected.value;
-            const listaId = selected.getAttribute("data-lista");
-            const rawText = selected.text.split(' — ')[1] || selected.text;
-            if (await registrarSustraccion(local, "concejal", concejalId, votos, currentUser.username, rawText, listaId)) {
-                mostrarNotificacion(`Se quitaron ${votos} voto(s). Registrado en auditoría.`, "warning");
-            } else mostrarNotificacion("Error al quitar votos", "error");
-        }
-        inputVotos.value = "";
-    };
-    
     document.getElementById('createUserBtn').addEventListener('click', async () => {
         const fullName = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
