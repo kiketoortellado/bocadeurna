@@ -1,0 +1,158 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: linear-gradient(145deg, #fef7e0 0%, #fff1db 100%);
+    color: #2c1810;
+    padding-bottom: 2rem;
+}
+
+:root {
+    --anr-red: #c1272d;
+    --radio-blue: #003366;
+    --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.08);
+    --border-radius: 1.2rem;
+}
+
+.container { max-width: 1400px; margin: 0 auto; padding: 1rem 1.5rem; }
+.radio-header {
+    background: var(--radio-blue);
+    border-radius: 2rem;
+    padding: 1rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    color: white;
+}
+.brand h1 { font-size: 1.5rem; }
+.brand h1 i { color: #f5b042; margin-right: 0.5rem; }
+.election-badge { background: var(--anr-red); padding: 0.5rem 1.2rem; border-radius: 3rem; font-weight: 700; }
+
+/* Tabs para admin */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    background: #3a2e28;
+    color: #f5e7d9;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 2rem;
+    cursor: pointer;
+    font-weight: bold;
+    width: auto;
+}
+.tab-btn.active {
+    background: var(--anr-red);
+    color: white;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Tarjetas de carga para digitador */
+.digitador-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+.carga-card {
+    background: #fef9ef;
+    border-radius: 1rem;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+    border-left: 5px solid var(--anr-red);
+}
+.carga-card h4 { margin-bottom: 1rem; }
+.carga-card select, .carga-card input {
+    width: 100%;
+    padding: 0.7rem;
+    margin-bottom: 0.8rem;
+    border-radius: 0.8rem;
+    border: 1px solid #e2cfbc;
+    background: white;
+}
+.carga-card button {
+    background: var(--anr-red);
+    color: white;
+    border: none;
+    padding: 0.7rem;
+    border-radius: 2rem;
+    font-weight: bold;
+    width: 100%;
+    cursor: pointer;
+}
+
+/* Tablas */
+.vote-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.vote-table th, .vote-table td {
+    padding: 0.6rem 0.3rem;
+    border-bottom: 1px solid #f0e2d0;
+    text-align: center;
+}
+.vote-table th { background: #fdf5e6; color: var(--radio-blue); }
+.candidate-name { font-weight: 700; text-align: left !important; }
+
+/* Admin area */
+.admin-area {
+    background: #2e241f;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    color: #f5e7d9;
+}
+.btn-admin {
+    background: var(--anr-red);
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 2rem;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+}
+.logout-btn { background: #5f4c3b; width: auto; }
+.floating-login {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    width: auto;
+}
+.login-modal {
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.login-card {
+    background: white;
+    max-width: 380px;
+    width: 90%;
+    padding: 2rem;
+    border-radius: 2rem;
+    text-align: center;
+}
+.login-card input {
+    width: 100%;
+    margin: 0.8rem 0;
+    padding: 0.7rem;
+}
+.footer-note { text-align: center; font-size: 0.75rem; margin-top: 2rem; color: #7b624b; }
+@media (max-width: 780px) {
+    .container { padding: 0.8rem; }
+    .charts-panel { grid-template-columns: 1fr; }
+}
