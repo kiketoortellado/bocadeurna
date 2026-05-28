@@ -1655,13 +1655,22 @@ function renderAdminPanel() {
                     <table class="vote-table"><thead><tr><th>Nombre</th><th>Usuario</th><th>Local Electoral</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
                 </div>
             </div>
-            <div id="tabLogs" class="tab-content">
-                <div class="results-section">
-                    <h3>Auditoría de Carga</h3>
-                    <table class="vote-table"><thead><tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th><th>Acción</th></tr></thead><tbody id="allLogsBody"></tbody></table>
-                </div>
-            </div>
+<div id="tabLogs" class="tab-content">
+    <div class="results-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+            <h3 style="margin: 0;">Auditoría de Carga</h3>
+            <button id="clearHistoryBtn" class="btn-clear-history">
+                <i class="fas fa-trash-alt"></i> Borrar todo el historial
+            </button>
         </div>
+        <table class="vote-table">
+            <thead>
+                <tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="allLogsBody"></tbody>
+        </table>
+    </div>
+</div>
     `;
 }
 
@@ -1687,6 +1696,16 @@ function setupAdminEvents() {
     });
 
     document.getElementById('createUserBtn').addEventListener('click', async () => {
+        // Evento para borrar historial (se asigna dinámicamente porque el botón se crea después)
+const observer = new MutationObserver(function(mutations) {
+    const clearBtn = document.getElementById('clearHistoryBtn');
+    if (clearBtn && !clearBtn.hasListener) {
+        clearBtn.addEventListener('click', borrarHistorialCompleto);
+        clearBtn.hasListener = true;
+        observer.disconnect();
+    }
+});
+observer.observe(document.getElementById('adminPanel'), { childList: true, subtree: true });
         const fullName = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value.trim();
@@ -1884,6 +1903,46 @@ async function startApp() {
                     renderAdminStats();
                     renderUsersTable();
                     renderAllLogs();
+                    // -------------------- BORRAR HISTORIAL COMPLETO --------------------
+async function borrarHistorialCompleto() {
+    if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción ELIMINARÁ PERMANENTEMENTE TODOS los registros de auditoría (cargas y anulaciones).\n\nNo se puede deshacer. ¿Continuar?")) {
+        return;
+    }
+    
+    const toastId = mostrarNotificacion("Eliminando historial... Por favor espere.", "info");
+    
+    try {
+        const logsCollection = collection(db, "logs");
+        const querySnapshot = await getDocs(logsCollection);
+        
+        if (querySnapshot.empty) {
+            mostrarNotificacion("No hay registros para eliminar.", "info");
+            return;
+        }
+        
+        const batch = writeBatch(db);
+        let count = 0;
+        
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+            count++;
+        });
+        
+        await batch.commit();
+        
+        mostrarNotificacion(`✅ Historial borrado exitosamente. Se eliminaron ${count} registros.`, "success");
+        
+        // Refrescar las tablas de auditoría
+        if (currentUser && currentUser.role === 'admin') {
+            renderAllLogs();
+            renderGestionCargas();
+        }
+        
+    } catch (error) {
+        console.error("Error al borrar historial:", error);
+        mostrarNotificacion("❌ Error al borrar el historial: " + error.message, "error");
+    }
+}
                 } else {
                     renderDigitadorPanel();
                     document.getElementById("digitadorPanel").style.display = "block";
