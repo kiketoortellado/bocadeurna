@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, setPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, browserLocalPersistence, signOut, onAuthStateChanged } from "firebase/auth";
+import { getAuth, setPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, browserLocalPersistence, signOut, onAuthStateChanged, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot, runTransaction, query, orderBy, limit, writeBatch, getDocs, where } from "firebase/firestore";
 
 // Configuración de Firebase
@@ -431,7 +431,7 @@ function inyectarEstilosProfesionales() {
     document.head.appendChild(styleEl);
 }
 
-// -------------------- UTILERÍA DE NOTIFICACIONES TOAST (CANDELAS DE ERROR) --------------------
+// -------------------- UTILERÍA DE NOTIFICACIONES TOAST --------------------
 function mostrarNotificacion(mensaje, tipo = 'info') {
     let container = document.getElementById('app-toast-container');
     if (!container) {
@@ -678,7 +678,6 @@ function escucharVotos() {
         cargas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (currentUser && currentUser.role === 'admin') {
             renderAllLogs();
-            // Refrescar gestión de cargas si la pestaña está activa
             const tabCarga = document.getElementById('tabCarga');
             if (tabCarga && tabCarga.classList.contains('active')) {
                 renderGestionCargas();
@@ -796,7 +795,6 @@ async function registrarSustraccion(local, tipo, id, votos, usuario, concejalNom
         return false;
     }
 }
-
 
 function totalIntendentes() {
     let total = {};
@@ -1013,7 +1011,7 @@ function renderTablaListasPorLocal() {
     const thead = document.getElementById("listasHeader");
     const tbody = document.getElementById("listasBody");
     if(!thead) return;
-    let header = "<tr><th>Local</th>";
+    let header = "</table><th>Local</th>";
     Object.keys(listasConcejales).forEach(lid=>{ header+=`<th>Lista ${lid}<br><small style="font-weight:normal;opacity:0.8;">${listasConcejales[lid].nombre}</small></th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -1196,7 +1194,6 @@ function renderGestionCargas() {
     const filtroTipo   = document.getElementById("gestionFiltroTipo")?.value   || '';
     const filtroAccion = document.getElementById("gestionFiltroAccion")?.value || '';
 
-    // Solo mostrar cargas originales de digitadores (no sustracción) para la vista de gestión
     let lista = cargas.slice(0, 500);
     if (filtroLocal)  lista = lista.filter(c => c.local === filtroLocal);
     if (filtroTipo)   lista = lista.filter(c => c.tipo === filtroTipo);
@@ -1221,7 +1218,6 @@ function renderGestionCargas() {
             : `<span style="background:var(--radio-green-light); color:var(--radio-green); padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:700; white-space:nowrap;">VIGENTE</span>`;
         const tipoBadge = `<span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; font-weight:bold; ${c.tipo === "intendente" ? 'background:var(--radio-green-light); color:var(--radio-green);' : 'background:var(--radio-fuchsia-light); color:var(--radio-fuchsia);'}">${c.tipo === "intendente" ? "Intendente" : "Concejal"}</span>`;
 
-        // Botón anular solo aparece en cargas vigentes de digitadores (no en sustraccion ni en cargas del admin)
         const puedeAnular = !esSustraccion && c.id;
         const btnAnular = puedeAnular
             ? `<button class="btn-anular-carga" data-id="${c.id}" data-local="${c.local}" data-tipo="${c.tipo}" data-candidato="${c.candidatoId || ''}" data-lista="${c.listaId || ''}" data-concejal="${c.concejalNombre || ''}" data-votos="${c.votos}" style="background:var(--radio-fuchsia); color:white; border:none; padding:5px 14px; border-radius:var(--radius-sm); font-size:0.82rem; font-weight:700; cursor:pointer; white-space:nowrap;">Anular</button>`
@@ -1240,7 +1236,6 @@ function renderGestionCargas() {
         </tr>`;
     }).join('');
 
-    // Asignar handlers a botones anular
     tbody.querySelectorAll('.btn-anular-carga').forEach(btn => {
         btn.addEventListener('click', async () => {
             const local      = btn.dataset.local;
@@ -1276,7 +1271,6 @@ function renderGestionCargas() {
     });
 }
 
-
 function renderDigitadorPanel() {
     document.getElementById("digitadorPanel").innerHTML = `
         <div class="mobile-wizard-container">
@@ -1305,30 +1299,25 @@ function renderDigitadorPanel() {
 }
 
 function loadDigitadorInterface() {
-    // Asegurar visibilidad correcta del panel
     document.getElementById("digitadorPanel").style.display = "block";
     document.getElementById("adminPanel").style.display = "none";
     
-    // Mostrar el local asignado al digitador actual
     const miLocalSpan = document.getElementById("miLocalSpan");
     if (miLocalSpan && currentUser) {
         miLocalSpan.innerText = currentUser.localAsignado || "Local Asignado";
     }
     
-    // Configurar botón de cerrar sesión
     const logoutDigitadorBtn = document.getElementById('logoutDigitadorBtn');
     if (logoutDigitadorBtn) {
         logoutDigitadorBtn.onclick = logout;
     }
     
-    // Objeto temporal que mantiene la selección del flujo actual
     let transaccionVoto = {
         intendenteId: null,
         listaId: null,
         concejalObj: null
     };
     
-    // --- PASO 1: SELECCIÓN DE INTENDENTE (OBLIGATORIO) ---
     function mostrarPaso1() {
         transaccionVoto = { intendenteId: null, listaId: null, concejalObj: null };
         const container = document.getElementById("wizardStepContent");
@@ -1370,7 +1359,6 @@ function loadDigitadorInterface() {
         });
     }
     
-    // --- PASO 2: SELECCIÓN DE LISTA DE CONCEJALES (SE PUEDE OMITIR O VOLVER) ---
     function mostrarPaso2() {
         const container = document.getElementById("wizardStepContent");
         if (!container) return;
@@ -1429,7 +1417,6 @@ function loadDigitadorInterface() {
         });
     }
     
-    // --- PASO 3: SELECCIÓN DE CANDIDATO INDIVIDUAL DE LA LISTA (OBLIGATORIO) ---
     function mostrarPaso3() {
         const container = document.getElementById("wizardStepContent");
         if (!container) return;
@@ -1494,7 +1481,6 @@ function loadDigitadorInterface() {
         });
     }
     
-    // --- PROCESAMIENTO, GUARDADO TRANSACCIONAL Y RESETEO EN BUCLE ---
     async function procesarGuardadoVoto(votoFinal) {
         const overlay = document.getElementById("wizardSuccessOverlay");
         const icon = document.getElementById("successIcon");
@@ -1511,10 +1497,8 @@ function loadDigitadorInterface() {
         try {
             const localDestino = currentUser.localAsignado || "Mesa Electoral";
             
-            // 1. Registrar Intendente (Mandatorio)
             await registrarVoto(localDestino, "intendente", votoFinal.intendenteId, 1, currentUser.username);
             
-            // 2. Registrar Concejal (Solo si el flujo no fue omitido)
             if (votoFinal.concejalObj) {
                 await registrarVoto(
                     localDestino,
@@ -1533,7 +1517,6 @@ function loadDigitadorInterface() {
                 icon.className = "fas fa-check-circle success-icon";
             }
             
-            // Reiniciar automáticamente el bucle después de 1 segundo
             setTimeout(() => {
                 if (overlay) overlay.style.display = "none";
                 mostrarPaso1();
@@ -1547,7 +1530,6 @@ function loadDigitadorInterface() {
         }
     }
     
-    // Iniciar el flujo en el paso 1
     mostrarPaso1();
 }
 
@@ -1568,6 +1550,7 @@ function renderMisCargas() {
         </tr>
     `).join("");
 }
+
 // -------------------- BORRAR HISTORIAL COMPLETO --------------------
 async function borrarHistorialCompleto() {
     if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción ELIMINARÁ PERMANENTEMENTE TODOS los registros de auditoría (cargas y anulaciones).\n\nNo se puede deshacer. ¿Continuar?")) {
@@ -1597,7 +1580,6 @@ async function borrarHistorialCompleto() {
         
         mostrarNotificacion(`✅ Historial borrado exitosamente. Se eliminaron ${count} registros.`, "success");
         
-        // Refrescar las tablas de auditoría
         if (currentUser && currentUser.role === 'admin') {
             renderAllLogs();
             renderGestionCargas();
@@ -1606,6 +1588,94 @@ async function borrarHistorialCompleto() {
     } catch (error) {
         console.error("Error al borrar historial:", error);
         mostrarNotificacion("❌ Error al borrar el historial: " + error.message, "error");
+    }
+}
+
+// -------------------- REINICIAR CONTADORES (VOTOS A CERO) --------------------
+async function reiniciarContadores() {
+    if (!confirm("⚠️ ATENCIÓN: Esta acción PONDRÁ TODOS LOS VOTOS A CERO (intendentes y concejales) en TODOS los locales.\n\n¿Estás seguro de continuar?")) {
+        return;
+    }
+
+    const password = prompt("🔐 Para confirmar, ingrese su contraseña de administrador:");
+    if (!password) {
+        mostrarNotificacion("Operación cancelada: no se ingresó contraseña.", "warning");
+        return;
+    }
+
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+        mostrarNotificacion("No hay sesión de administrador activa.", "error");
+        return;
+    }
+
+    mostrarNotificacion("Verificando credenciales...", "info");
+
+    try {
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+        
+        mostrarNotificacion("Contraseña verificada. Reiniciando contadores...", "info");
+
+        const batch = writeBatch(db);
+
+        // Resetear intendentes
+        for (let local of locales) {
+            const docRef = doc(db, "intendentes_votes", local);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const updates = {};
+                for (let key in data) {
+                    updates[key] = 0;
+                }
+                batch.update(docRef, updates);
+            }
+        }
+
+        // Resetear concejales
+        for (let local of locales) {
+            const docRef = doc(db, "concejales_votes", local);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const updates = {};
+                for (let key in data) {
+                    updates[key] = 0;
+                }
+                batch.update(docRef, updates);
+            }
+        }
+
+        await batch.commit();
+
+        await setDoc(doc(collection(db, "logs")), {
+            timestamp: new Date().toISOString(),
+            usuario: currentUser.username,
+            local: "TODOS",
+            tipo: "SISTEMA",
+            candidatoId: null,
+            listaId: null,
+            concejalNombre: null,
+            votos: 0,
+            accion: "RESETEO_COMPLETO"
+        });
+
+        mostrarNotificacion("✅ Todos los contadores han sido reiniciados a cero.", "success");
+        
+        if (currentUser && currentUser.role === 'admin') {
+            renderAdminStats();
+            renderGestionCargas();
+            renderAllLogs();
+        }
+        
+    } catch (error) {
+        console.error("Error al reautenticar o resetear:", error);
+        if (error.code === 'auth/wrong-password') {
+            mostrarNotificacion("❌ Contraseña incorrecta. Operación cancelada.", "error");
+        } else {
+            mostrarNotificacion("❌ Error al reiniciar contadores: " + error.message, "error");
+        }
     }
 }
 
@@ -1642,9 +1712,14 @@ function renderAdminPanel() {
                 <div style="background:white; border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-card); margin-bottom:16px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
                         <h3 style="color:var(--radio-green); margin:0;">Gestión de Cargas de Digitadores</h3>
-                        <span style="font-size:0.82rem; color:var(--radio-text-muted); background:var(--radio-green-light); padding:6px 14px; border-radius:20px;">
-                            <i class="fas fa-info-circle"></i> Solo digitadores pueden agregar votos. El admin puede anular cargas erróneas.
-                        </span>
+                        <div style="display:flex; gap:10px;">
+                            <span style="font-size:0.82rem; color:var(--radio-text-muted); background:var(--radio-green-light); padding:6px 14px; border-radius:20px;">
+                                <i class="fas fa-info-circle"></i> Solo digitadores pueden agregar votos. El admin puede anular cargas erróneas.
+                            </span>
+                            <button id="resetCountersBtn" class="btn-clear-history" style="background:#d9534f;">
+                                <i class="fas fa-sync-alt"></i> Reiniciar contadores
+                            </button>
+                        </div>
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
                         <select id="gestionFiltroLocal" style="flex:1; min-width:160px; padding:10px 14px; border:1px solid var(--radio-border); border-radius:var(--radius-md); font-size:0.9rem; background:#f8fafc; color:var(--radio-text);">
@@ -1695,22 +1770,23 @@ function renderAdminPanel() {
                     <table class="vote-table"><thead><tr><th>Nombre</th><th>Usuario</th><th>Local Electoral</th><th>Acciones</th></tr></thead><tbody id="usersTableBody"></tbody></table>
                 </div>
             </div>
-<div id="tabLogs" class="tab-content">
-    <div class="results-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
-            <h3 style="margin: 0;">Auditoría de Carga</h3>
-            <button id="clearHistoryBtn" class="btn-clear-history">
-                <i class="fas fa-trash-alt"></i> Borrar todo el historial
-            </button>
+            <div id="tabLogs" class="tab-content">
+                <div class="results-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+                        <h3 style="margin: 0;">Auditoría de Carga</h3>
+                        <button id="clearHistoryBtn" class="btn-clear-history">
+                            <i class="fas fa-trash-alt"></i> Borrar todo el historial
+                        </button>
+                    </div>
+                    <table class="vote-table">
+                        <thead>
+                            <tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody id="allLogsBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <table class="vote-table">
-            <thead>
-                <tr><th>Hora</th><th>Usuario</th><th>Local</th><th>Módulo</th><th>Candidato / Lista</th><th>Concejal</th><th style="text-align:right;">Votos</th><th>Acción</th></tr>
-            </thead>
-            <tbody id="allLogsBody"></tbody>
-        </table>
-    </div>
-</div>
     `;
 }
 
@@ -1729,13 +1805,11 @@ function setupAdminEvents() {
         });
     });
 
-    // Filtros de la gestión de cargas
     ['gestionFiltroLocal','gestionFiltroTipo','gestionFiltroAccion'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', renderGestionCargas);
     });
 
-    // Crear nuevo digitador
     document.getElementById('createUserBtn').addEventListener('click', async () => {
         const fullName = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
@@ -1755,13 +1829,16 @@ function setupAdminEvents() {
         }
     });
     
-    // Cerrar sesión del administrador
     document.getElementById('logoutAdminBtn').addEventListener('click', logout);
 
-    // ✅ Botón para borrar historial completo (desde la pestaña Auditoría)
     const clearBtn = document.getElementById('clearHistoryBtn');
     if (clearBtn) {
         clearBtn.addEventListener('click', borrarHistorialCompleto);
+    }
+
+    const resetBtn = document.getElementById('resetCountersBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', reiniciarContadores);
     }
 }
 
@@ -1771,13 +1848,10 @@ async function login(username, password) {
         const normalizedUsername = username.toLowerCase();
         const email = `${normalizedUsername}@bocadeurna.local`;
         
-        // 1. Validar correo y contraseña
         const userCred = await signInWithEmailAndPassword(auth, email, password);
         
-        // 2. Buscar datos en base de datos
         let userDoc = await getDoc(doc(db, "users", normalizedUsername));
         
-        // 🔥 AUTO-REPARACIÓN
         if (!userDoc.exists() && normalizedUsername === "admin") {
             console.log("Perfil de Admin ausente en Firestore. Recreando automáticamente...");
             await setDoc(doc(db, "users", "admin"), {
@@ -1790,7 +1864,6 @@ async function login(username, password) {
             userDoc = await getDoc(doc(db, "users", normalizedUsername));
         }
 
-        // 3. Evaluar permisos y enrutar
         if (userDoc.exists()) {
             const userData = userDoc.data();
             if (userData.disabled) {
@@ -1839,7 +1912,6 @@ function logout() {
     
     document.getElementById("adminPanel").style.display = "none";
     document.getElementById("digitadorPanel").style.display = "none";
-    // Mostrar login automáticamente tras cerrar sesión
     setTimeout(() => {
         if (!document.querySelector('.login-modal')) showLoginModal();
     }, 400);
@@ -1875,16 +1947,13 @@ function showLoginModal() {
     };
     document.getElementById('loginBtn').addEventListener('click', doLogin);
     document.getElementById('closeModalBtn').addEventListener('click', () => {
-        // Solo permitir cerrar si hay una sesión activa (modo "cambio de cuenta")
         if (currentUser) modal.remove();
-        // Si no hay sesión, no hacer nada — el usuario debe autenticarse
     });
     document.getElementById('loginPass').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
 }
 
 // -------------------- INICIO Y PERSISTENCIA DE LA APP --------------------
 async function startApp() {
-    // Inyectar la capa visual integrada al iniciar la app
     inyectarEstilosProfesionales();
     
     const success = await cargarDatosDesdeCSV();
@@ -1894,9 +1963,8 @@ async function startApp() {
     escucharVotos();
     
     const floatingBtn = document.getElementById('floatingLoginBtn');
-    if (floatingBtn) floatingBtn.style.display = 'none'; // siempre oculto
+    if (floatingBtn) floatingBtn.style.display = 'none';
 
-    // Escuchar estado de autenticación
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             const inicioSesion = localStorage.getItem('inicio_sesion_timestamp');
@@ -1919,7 +1987,6 @@ async function startApp() {
                 }
             }
             
-            // 🔥 AUTO-REPARACIÓN EN SEGUNDA LÍNEA
             if (!userData && user.email === "admin@bocadeurna.local") {
                 console.log("Sesión activa detectada pero sin datos. Reconstruyendo documento del Admin...");
                 await setDoc(doc(db, "users", "admin"), {
@@ -1943,7 +2010,7 @@ async function startApp() {
                     renderAdminStats();
                     renderUsersTable();
                     renderAllLogs();
-                    } else {
+                } else {
                     renderDigitadorPanel();
                     document.getElementById("digitadorPanel").style.display = "block";
                     document.getElementById("adminPanel").style.display = "none";
@@ -1955,7 +2022,6 @@ async function startApp() {
             }
         } else {
             if (currentUser) logout();
-            // Mostrar login automáticamente si no hay sesión activa
             if (!document.querySelector('.login-modal')) {
                 showLoginModal();
             }
