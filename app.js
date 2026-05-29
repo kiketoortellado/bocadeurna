@@ -1559,6 +1559,46 @@ function renderMisCargas() {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--radio-text-muted); font-size:0.9rem; padding:20px;">Ninguna carga enviada aún en esta jornada.</td></tr>`;
         return;
     }
+    // -------------------- BORRAR HISTORIAL COMPLETO --------------------
+async function borrarHistorialCompleto() {
+    if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción ELIMINARÁ PERMANENTEMENTE TODOS los registros de auditoría (cargas y anulaciones).\n\nNo se puede deshacer. ¿Continuar?")) {
+        return;
+    }
+    
+    mostrarNotificacion("Eliminando historial... Por favor espere.", "info");
+    
+    try {
+        const logsCollection = collection(db, "logs");
+        const querySnapshot = await getDocs(logsCollection);
+        
+        if (querySnapshot.empty) {
+            mostrarNotificacion("No hay registros para eliminar.", "info");
+            return;
+        }
+        
+        const batch = writeBatch(db);
+        let count = 0;
+        
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+            count++;
+        });
+        
+        await batch.commit();
+        
+        mostrarNotificacion(`✅ Historial borrado exitosamente. Se eliminaron ${count} registros.`, "success");
+        
+        // Refrescar las tablas de auditoría
+        if (currentUser && currentUser.role === 'admin') {
+            renderAllLogs();
+            renderGestionCargas();
+        }
+        
+    } catch (error) {
+        console.error("Error al borrar historial:", error);
+        mostrarNotificacion("❌ Error al borrar el historial: " + error.message, "error");
+    }
+}
     tbody.innerHTML = misCargas.map(c => `
         <tr>
             <td style="color:var(--radio-text-muted); font-size:0.85rem;">${new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
@@ -1695,23 +1735,16 @@ function setupAdminEvents() {
         if (el) el.addEventListener('change', renderGestionCargas);
     });
 
+    // Crear nuevo digitador
     document.getElementById('createUserBtn').addEventListener('click', async () => {
-        // Evento para borrar historial (se asigna dinámicamente porque el botón se crea después)
-const observer = new MutationObserver(function(mutations) {
-    const clearBtn = document.getElementById('clearHistoryBtn');
-    if (clearBtn && !clearBtn.hasListener) {
-        clearBtn.addEventListener('click', borrarHistorialCompleto);
-        clearBtn.hasListener = true;
-        observer.disconnect();
-    }
-});
-observer.observe(document.getElementById('adminPanel'), { childList: true, subtree: true });
         const fullName = document.getElementById('newFullName').value.trim();
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value.trim();
         const local = document.getElementById('newUserLocal').value;
-        if (!fullName || !username || !password) { mostrarNotificacion("Por favor complete todos los campos de registro", "warning"); return; }
-        
+        if (!fullName || !username || !password) { 
+            mostrarNotificacion("Por favor complete todos los campos de registro", "warning"); 
+            return; 
+        }
         const ok = await crearDigitador(fullName, username, password, local);
         if (ok) {
             mostrarNotificacion(`Digitador ${username} configurado en el sistema con éxito`, "success");
@@ -1722,7 +1755,14 @@ observer.observe(document.getElementById('adminPanel'), { childList: true, subtr
         }
     });
     
+    // Cerrar sesión del administrador
     document.getElementById('logoutAdminBtn').addEventListener('click', logout);
+
+    // ✅ Botón para borrar historial completo (desde la pestaña Auditoría)
+    const clearBtn = document.getElementById('clearHistoryBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', borrarHistorialCompleto);
+    }
 }
 
 // -------------------- LOGIN Y AUTENTICACIÓN --------------------
@@ -1903,12 +1943,6 @@ async function startApp() {
                     renderAdminStats();
                     renderUsersTable();
                     renderAllLogs();
-                    // -------------------- BORRAR HISTORIAL COMPLETO --------------------
-async function borrarHistorialCompleto() {
-    if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción ELIMINARÁ PERMANENTEMENTE TODOS los registros de auditoría (cargas y anulaciones).\n\nNo se puede deshacer. ¿Continuar?")) {
-        return;
-    }
-    
     const toastId = mostrarNotificacion("Eliminando historial... Por favor espere.", "info");
     
     try {
