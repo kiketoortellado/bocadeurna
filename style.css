@@ -27,7 +27,7 @@ body {
 .radio-header {
     background: var(--radio-green);
     border-radius: 2rem;
-    padding: 1rem 2rem;
+    padding: 1rem 1.5rem;  /* antes era 1rem 2rem */
     margin-bottom: 2rem;
     display: flex;
     justify-content: space-between;
