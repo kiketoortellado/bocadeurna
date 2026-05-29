@@ -606,13 +606,10 @@ body {
 }
 
 @keyframes quickPop {
-.btn-clear-history:hover {
-    background: #7f1a1a;
-    transform: scale(1.02);
-}
     0% { transform: scale(0.9); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
+
 /* Botón borrar historial completo */
 .btn-clear-history {
     background: #b91c1c;
@@ -624,4 +621,11 @@ body {
     cursor: pointer;
     margin: 1rem 0;
     transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.btn-clear-history:hover {
+    background: #7f1a1a;
+    transform: scale(1.02);
 }
