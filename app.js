@@ -1943,41 +1943,7 @@ async function startApp() {
                     renderAdminStats();
                     renderUsersTable();
                     renderAllLogs();
-    const toastId = mostrarNotificacion("Eliminando historial... Por favor espere.", "info");
-    
-    try {
-        const logsCollection = collection(db, "logs");
-        const querySnapshot = await getDocs(logsCollection);
-        
-        if (querySnapshot.empty) {
-            mostrarNotificacion("No hay registros para eliminar.", "info");
-            return;
-        }
-        
-        const batch = writeBatch(db);
-        let count = 0;
-        
-        querySnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-            count++;
-        });
-        
-        await batch.commit();
-        
-        mostrarNotificacion(`✅ Historial borrado exitosamente. Se eliminaron ${count} registros.`, "success");
-        
-        // Refrescar las tablas de auditoría
-        if (currentUser && currentUser.role === 'admin') {
-            renderAllLogs();
-            renderGestionCargas();
-        }
-        
-    } catch (error) {
-        console.error("Error al borrar historial:", error);
-        mostrarNotificacion("❌ Error al borrar el historial: " + error.message, "error");
-    }
-}
-                } else {
+                    } else {
                     renderDigitadorPanel();
                     document.getElementById("digitadorPanel").style.display = "block";
                     document.getElementById("adminPanel").style.display = "none";
