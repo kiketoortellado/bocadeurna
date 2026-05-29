@@ -60,6 +60,8 @@ body {
     height: 80px;
     width: auto;
     vertical-align: middle;
+    /* 🔥 FILTRO PARA VOLVER EL LOGO BLANCO SOBRE FONDO OSCURO */
+    filter: brightness(0) invert(1);
 }
 
 .login-logo {
