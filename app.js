@@ -1559,7 +1559,16 @@ function renderMisCargas() {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--radio-text-muted); font-size:0.9rem; padding:20px;">Ninguna carga enviada aún en esta jornada.</td></tr>`;
         return;
     }
-    // -------------------- BORRAR HISTORIAL COMPLETO --------------------
+    tbody.innerHTML = misCargas.map(c => `
+        <tr>
+            <td style="color:var(--radio-text-muted); font-size:0.85rem;">${new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            <td><span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; font-weight:bold; ${c.tipo === "intendente" ? 'background:var(--radio-green-light); color:var(--radio-green);':'background:var(--radio-fuchsia-light); color:var(--radio-fuchsia);'}">${c.tipo === "intendente" ? "Intendente" : "Junta"}</span></td>
+            <td class="candidate-name">${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
+            <td style="font-weight:700; color:var(--radio-green); text-align:right;">+${c.votos}</td>
+        </tr>
+    `).join("");
+}
+// -------------------- BORRAR HISTORIAL COMPLETO --------------------
 async function borrarHistorialCompleto() {
     if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción ELIMINARÁ PERMANENTEMENTE TODOS los registros de auditoría (cargas y anulaciones).\n\nNo se puede deshacer. ¿Continuar?")) {
         return;
@@ -1598,15 +1607,6 @@ async function borrarHistorialCompleto() {
         console.error("Error al borrar historial:", error);
         mostrarNotificacion("❌ Error al borrar el historial: " + error.message, "error");
     }
-}
-    tbody.innerHTML = misCargas.map(c => `
-        <tr>
-            <td style="color:var(--radio-text-muted); font-size:0.85rem;">${new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-            <td><span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; font-weight:bold; ${c.tipo === "intendente" ? 'background:var(--radio-green-light); color:var(--radio-green);':'background:var(--radio-fuchsia-light); color:var(--radio-fuchsia);'}">${c.tipo === "intendente" ? "Intendente" : "Junta"}</span></td>
-            <td class="candidate-name">${c.tipo === "intendente" ? (intendentes.find(i=>i.id===c.candidatoId)?.nombre || c.candidatoId) : (c.concejalNombre || `Lista ${c.listaId}`)}</td>
-            <td style="font-weight:700; color:var(--radio-green); text-align:right;">+${c.votos}</td>
-        </tr>
-    `).join("");
 }
 
 // -------------------- ESTRUCTURA HTML DEL PANEL ADMIN --------------------
