@@ -12,8 +12,8 @@ body {
 }
 
 :root {
-    --radio-green: #006D5B;
-    --radio-fuchsia: #D81B60;
+    --radio-green: #0d523c;
+    --radio-fuchsia: #df1660;
     --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.1);
     --border-radius: 1.5rem;
 }
