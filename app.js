@@ -599,25 +599,29 @@ function obtenerColorParaLista(lista) {
 async function inicializarVotosEnFirestore() {
     if (!intendentes.length || !locales.length) return;
     const batch = writeBatch(db);
-    
-    for (let local of locales) {
-        const docRef = doc(db, "intendentes_votes", local);
-        const docSnap = await getDoc(docRef);
+
+    // Leer todos los documentos en paralelo en lugar de secuencialmente
+    const [intSnaps, concSnaps] = await Promise.all([
+        Promise.all(locales.map(local => getDoc(doc(db, "intendentes_votes", local)))),
+        Promise.all(locales.map(local => getDoc(doc(db, "concejales_votes", local))))
+    ]);
+
+    intSnaps.forEach((docSnap, idx) => {
         if (!docSnap.exists()) {
             const initialData = {};
             intendentes.forEach(i => { initialData[i.id] = 0; });
-            batch.set(docRef, initialData);
+            batch.set(doc(db, "intendentes_votes", locales[idx]), initialData);
         }
-    }
-    for (let local of locales) {
-        const docRef = doc(db, "concejales_votes", local);
-        const docSnap = await getDoc(docRef);
+    });
+
+    concSnaps.forEach((docSnap, idx) => {
         if (!docSnap.exists()) {
             const initialData = {};
             concejalesIndividuales.forEach(c => { initialData[c.id] = 0; });
-            batch.set(docRef, initialData);
+            batch.set(doc(db, "concejales_votes", locales[idx]), initialData);
         }
-    }
+    });
+
     await batch.commit();
 }
 
@@ -647,6 +651,15 @@ async function crearAdminInicial() {
 }
 
 // -------------------- LISTENERS EN TIEMPO REAL --------------------
+// Debounce para evitar doble renderizado cuando disparan ambos snapshots juntos
+let _renderStatsTimer = null;
+function debouncedRenderAdminStats() {
+    clearTimeout(_renderStatsTimer);
+    _renderStatsTimer = setTimeout(() => {
+        if (currentUser && currentUser.role === 'admin') renderAdminStats();
+    }, 80);
+}
+
 function escucharVotos() {
     if (listenersActive) return;
     listenersActive = true;
@@ -656,9 +669,7 @@ function escucharVotos() {
         onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 votosIntendentes[local] = docSnap.data();
-                if (currentUser && currentUser.role === 'admin') {
-                    renderAdminStats();
-                }
+                debouncedRenderAdminStats();
             }
         });
         
@@ -666,9 +677,7 @@ function escucharVotos() {
         onSnapshot(docRefConc, (docSnap) => {
             if (docSnap.exists()) {
                 votosConcejales[local] = docSnap.data();
-                if (currentUser && currentUser.role === 'admin') {
-                    renderAdminStats();
-                }
+                debouncedRenderAdminStats();
             }
         });
     }
@@ -688,113 +697,46 @@ function escucharVotos() {
     });
 }
 
-// -------------------- REGISTRO DE VOTOS CON TRANSACCIÓN --------------------
-async function registrarVoto(local, tipo, id, votos, usuario, concejalNombre = null, listaId = null) {
+// -------------------- REGISTRO / SUSTRACCIÓN DE VOTOS (FUNCIÓN UNIFICADA) --------------------
+async function registrarOperacionVoto(local, tipo, id, votos, usuario, concejalNombre = null, listaId = null, esSustraccion = false) {
     votos = parseInt(votos);
     if (isNaN(votos) || votos <= 0) return false;
+    const coleccion = tipo === "intendente" ? "intendentes_votes" : "concejales_votes";
     try {
-        if (tipo === "intendente") {
-            const docRef = doc(db, "intendentes_votes", local);
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) throw new Error("Documento no existe");
-                const currentData = docSnap.data();
-                const newVal = (currentData[id] || 0) + votos;
-                transaction.update(docRef, { [id]: newVal });
-            });
-            await setDoc(doc(collection(db, "logs")), {
-                timestamp: new Date().toISOString(),
-                usuario: usuario,
-                local: local,
-                tipo: "intendente",
-                candidatoId: id,
-                listaId: null,
-                concejalNombre: null,
-                votos: votos
-            });
-        } else if (tipo === "concejal") {
-            const docRef = doc(db, "concejales_votes", local);
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) throw new Error("Documento no existe");
-                const currentData = docSnap.data();
-                const newVal = (currentData[id] || 0) + votos;
-                transaction.update(docRef, { [id]: newVal });
-            });
-            await setDoc(doc(collection(db, "logs")), {
-                timestamp: new Date().toISOString(),
-                usuario: usuario,
-                local: local,
-                tipo: "concejal",
-                candidatoId: null,
-                listaId: listaId,
-                concejalNombre: concejalNombre,
-                votos: votos
-            });
-        }
+        const docRef = doc(db, coleccion, local);
+        await runTransaction(db, async (transaction) => {
+            const docSnap = await transaction.get(docRef);
+            if (!docSnap.exists()) throw new Error("Documento no existe");
+            const currentVal = (docSnap.data()[id] || 0);
+            const newVal = esSustraccion ? Math.max(0, currentVal - votos) : currentVal + votos;
+            transaction.update(docRef, { [id]: newVal });
+        });
+        const logData = {
+            timestamp: new Date().toISOString(),
+            usuario,
+            local,
+            tipo,
+            candidatoId: tipo === "intendente" ? id : null,
+            listaId: tipo === "concejal" ? listaId : null,
+            concejalNombre: tipo === "concejal" ? concejalNombre : null,
+            votos
+        };
+        if (esSustraccion) logData.accion = "sustraccion";
+        await setDoc(doc(collection(db, "logs")), logData);
         return true;
     } catch (error) {
-        console.error("Error en transacción:", error);
-        mostrarNotificacion("Error crítico al registrar voto en la base de datos.", "error");
+        console.error(`Error en ${esSustraccion ? 'sustracción' : 'registro'} de voto:`, error);
+        mostrarNotificacion(`Error al ${esSustraccion ? 'sustraer' : 'registrar'} voto en la base de datos.`, "error");
         return false;
     }
 }
 
-// -------------------- SUSTRACCIÓN DE VOTOS CON AUDITORÍA --------------------
-async function registrarSustraccion(local, tipo, id, votos, usuario, concejalNombre = null, listaId = null) {
-    votos = parseInt(votos);
-    if (isNaN(votos) || votos <= 0) return false;
-    try {
-        if (tipo === "intendente") {
-            const docRef = doc(db, "intendentes_votes", local);
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) throw new Error("Documento no existe");
-                const currentData = docSnap.data();
-                const currentVal = currentData[id] || 0;
-                const newVal = Math.max(0, currentVal - votos);
-                transaction.update(docRef, { [id]: newVal });
-            });
-            await setDoc(doc(collection(db, "logs")), {
-                timestamp: new Date().toISOString(),
-                usuario: usuario,
-                local: local,
-                tipo: "intendente",
-                candidatoId: id,
-                listaId: null,
-                concejalNombre: null,
-                votos: votos,
-                accion: "sustraccion"
-            });
-        } else if (tipo === "concejal") {
-            const docRef = doc(db, "concejales_votes", local);
-            await runTransaction(db, async (transaction) => {
-                const docSnap = await transaction.get(docRef);
-                if (!docSnap.exists()) throw new Error("Documento no existe");
-                const currentData = docSnap.data();
-                const currentVal = currentData[id] || 0;
-                const newVal = Math.max(0, currentVal - votos);
-                transaction.update(docRef, { [id]: newVal });
-            });
-            await setDoc(doc(collection(db, "logs")), {
-                timestamp: new Date().toISOString(),
-                usuario: usuario,
-                local: local,
-                tipo: "concejal",
-                candidatoId: null,
-                listaId: listaId,
-                concejalNombre: concejalNombre,
-                votos: votos,
-                accion: "sustraccion"
-            });
-        }
-        return true;
-    } catch (error) {
-        console.error("Error en sustracción:", error);
-        mostrarNotificacion("Error al sustraer voto de la base de datos.", "error");
-        return false;
-    }
-}
+// Alias para mantener compatibilidad con el código existente
+const registrarVoto = (local, tipo, id, votos, usuario, concejalNombre = null, listaId = null) =>
+    registrarOperacionVoto(local, tipo, id, votos, usuario, concejalNombre, listaId, false);
+
+const registrarSustraccion = (local, tipo, id, votos, usuario, concejalNombre = null, listaId = null) =>
+    registrarOperacionVoto(local, tipo, id, votos, usuario, concejalNombre, listaId, true);
 
 function totalIntendentes() {
     let total = {};
@@ -887,6 +829,7 @@ function calcularResultadosConcejales() {
 // -------------------- RENDER ADMIN (TABLAS Y GRÁFICOS) --------------------
 function renderAdminStats() {
     if (!currentUser || currentUser.role !== 'admin') return;
+    if (!document.getElementById('intendentesHeader')) return; // Panel aún no renderizado
     renderTablaIntendentesPorLocal();
     renderTablaListasPorLocal();
     
@@ -1011,7 +954,7 @@ function renderTablaListasPorLocal() {
     const thead = document.getElementById("listasHeader");
     const tbody = document.getElementById("listasBody");
     if(!thead) return;
-    let header = "</table><th>Local</th>";
+    let header = "<tr><th>Local</th>";
     Object.keys(listasConcejales).forEach(lid=>{ header+=`<th>Lista ${lid}<br><small style="font-weight:normal;opacity:0.8;">${listasConcejales[lid].nombre}</small></th>`; });
     header+="<th>Total Local</th></tr>";
     thead.innerHTML = header;
@@ -1525,7 +1468,7 @@ function loadDigitadorInterface() {
         } catch (error) {
             console.error("Error al registrar voto:", error);
             if (overlay) overlay.style.display = "none";
-            alert("Error de conexión. Por favor presiona la última opción de nuevo.");
+            mostrarNotificacion("Error de conexión. Por favor intentá de nuevo.", "error");
             mostrarPaso1();
         }
     }
@@ -1535,7 +1478,7 @@ function loadDigitadorInterface() {
 
 function renderMisCargas() {
     const tbody = document.getElementById("misCargasBody");
-    if(!tbody) return;
+    if (!tbody || !currentUser) return;
     const misCargas = cargas.filter(c => c.usuario === currentUser.username).slice(0,30);
     if(misCargas.length === 0){
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--radio-text-muted); font-size:0.9rem; padding:20px;">Ninguna carga enviada aún en esta jornada.</td></tr>`;
@@ -1568,15 +1511,16 @@ async function borrarHistorialCompleto() {
             return;
         }
         
-        const batch = writeBatch(db);
+        // Firestore limita a 500 operaciones por batch — fragmentar si es necesario
+        const CHUNK = 499;
+        const docs = querySnapshot.docs;
         let count = 0;
         
-        querySnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-            count++;
-        });
-        
-        await batch.commit();
+        for (let i = 0; i < docs.length; i += CHUNK) {
+            const batch = writeBatch(db);
+            docs.slice(i, i + CHUNK).forEach(d => { batch.delete(d.ref); count++; });
+            await batch.commit();
+        }
         
         mostrarNotificacion(`✅ Historial borrado exitosamente. Se eliminaron ${count} registros.`, "success");
         
@@ -1617,35 +1561,29 @@ async function reiniciarContadores() {
         
         mostrarNotificacion("Contraseña verificada. Reiniciando contadores...", "info");
 
+        // Leer todos los documentos en paralelo
+        const [intSnaps, concSnaps] = await Promise.all([
+            Promise.all(locales.map(local => getDoc(doc(db, "intendentes_votes", local)))),
+            Promise.all(locales.map(local => getDoc(doc(db, "concejales_votes", local))))
+        ]);
+
         const batch = writeBatch(db);
 
-        // Resetear intendentes
-        for (let local of locales) {
-            const docRef = doc(db, "intendentes_votes", local);
-            const docSnap = await getDoc(docRef);
+        intSnaps.forEach((docSnap, idx) => {
             if (docSnap.exists()) {
-                const data = docSnap.data();
                 const updates = {};
-                for (let key in data) {
-                    updates[key] = 0;
-                }
-                batch.update(docRef, updates);
+                for (let key in docSnap.data()) updates[key] = 0;
+                batch.update(doc(db, "intendentes_votes", locales[idx]), updates);
             }
-        }
+        });
 
-        // Resetear concejales
-        for (let local of locales) {
-            const docRef = doc(db, "concejales_votes", local);
-            const docSnap = await getDoc(docRef);
+        concSnaps.forEach((docSnap, idx) => {
             if (docSnap.exists()) {
-                const data = docSnap.data();
                 const updates = {};
-                for (let key in data) {
-                    updates[key] = 0;
-                }
-                batch.update(docRef, updates);
+                for (let key in docSnap.data()) updates[key] = 0;
+                batch.update(doc(db, "concejales_votes", locales[idx]), updates);
             }
-        }
+        });
 
         await batch.commit();
 
