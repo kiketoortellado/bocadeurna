@@ -4,7 +4,7 @@
 //             Cache-First para assets estáticos externos.
 // ============================================================
 
-const CACHE_NAME = 'santani-elecciones-v3';
+const CACHE_NAME = 'santani-elecciones-v4';
 
 // Assets que se pre-cachean al instalar (solo estáticos locales + CDN confiable)
 const PRECACHE_URLS = [
